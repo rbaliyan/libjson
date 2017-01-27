@@ -90,6 +90,7 @@ static struct json* json_alloc_obj()
     }
     return json;
 }
+
 /*
 * Json Value allocate 
 */
@@ -679,6 +680,9 @@ static struct json * json_parse_obj(const char *start, const  char *end, const  
             key = get_string(start, end, &temp, &len);
             if(!key || (temp == start)){
                 fprintf(stderr, "%s:%d>Missing Key, should start with \"\n",__func__, __LINE__);
+                json_free(json);
+                if(err)
+                    *err = JSON_ERR_PARSE;
                 return NULL;
             }
             
@@ -686,6 +690,7 @@ static struct json * json_parse_obj(const char *start, const  char *end, const  
             start = trim(temp, end);
             if(( start == end ) || *start != ':'){
                 fprintf(stderr, "%s:%d>Missing :\n",__func__, __LINE__);
+                json_free(json);
                 if(err)
                     *err = JSON_ERR_PARSE;
                 return NULL;
@@ -695,6 +700,7 @@ static struct json * json_parse_obj(const char *start, const  char *end, const  
             start = trim(start + 1, end);
             if( start >= end ){
                 fprintf(stderr, "%s:%d>Missing Value after :\n", __func__, __LINE__);
+                json_free(json);
                 if(err)
                     *err = JSON_ERR_PARSE;
                 return NULL;
@@ -706,12 +712,16 @@ static struct json * json_parse_obj(const char *start, const  char *end, const  
             /* Check for success */
             if(!val || (start == temp)){
                 fprintf(stderr, "%s:%d>Failed to parse value for %s\n", __func__, __LINE__, key);
+                json_free(json);
+                if(err)
+                    *err = JSON_ERR_PARSE;
                 return NULL;
             }
 
             /* Add Key value pair in json object */
             if(!json_dict_add(json, key, val)){
                 fprintf(stderr, "%s:%d>Failed to add value for %s in json object\n", __func__, __LINE__, key);
+                json_free(json);
                 if(err)
                     *err = JSON_ERR_NO_MEM;
                 return NULL;
@@ -721,6 +731,9 @@ static struct json * json_parse_obj(const char *start, const  char *end, const  
             start = trim(temp, end);
             if(start == end ){
                 fprintf(stderr, "%s:%d>Missing }\n", __func__, __LINE__);
+                json_free(json);
+                if(err)
+                    *err = JSON_ERR_NO_MEM;
                 return NULL;
             }
             
@@ -742,6 +755,7 @@ static struct json * json_parse_obj(const char *start, const  char *end, const  
                 default:
                     fprintf(stderr, "%s:%d>Missing ,\n", __func__, __LINE__);
                     *raw = begin;
+                     json_free(json);
                     if(err)
                         *err = JSON_ERR_PARSE;
                 return NULL;
