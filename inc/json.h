@@ -48,8 +48,8 @@ int json_set(struct json *json, const char *key, int type, void *val);
 const void* json_iter_next(struct json_iter *iter,  int *type);
 int json_print(struct json *json, unsigned int indent);
 int json_printf(struct json *json, const char *fname, unsigned int indent);
-int json_prints(struct json *json, const char *buffer, unsigned int size, unsigned int indent);
-
+int json_prints(struct json *json, char *buffer, unsigned int size, unsigned int indent);
+char* json_str(struct json *json, int *len, unsigned int indent);
 #ifdef __cplusplus
 }
 #endif

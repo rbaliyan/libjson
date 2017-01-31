@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include "json.h"
+#include "fsutils.h"
 #include "utils.h"
 
 /*  Json Value */
@@ -995,10 +996,33 @@ int json_printf(struct json *json, const char *fname, unsigned int indent)
     }
    return -1;
 }
+
+char* json_str(struct json *json, int *len, unsigned int indent)
+{
+    char **buf_ptr;
+    char *buffer;
+    size_t *size_ptr = NULL;
+    size_t size = 0;
+    int print_length = 0;
+    FILE *fp = fdmemopen(&buf_ptr, &size_ptr);
+    if(fp){
+         print_length = json_print_obj(fp, json, indent, 0);
+         buffer = *buf_ptr;
+         size = *size_ptr;
+         fclose(fp);
+         if(len)*len = print_length;
+         return buffer;
+    } else {
+        fprintf(stderr, "%s:%d>Failed to initialize buffer as file", __func__, __LINE__);
+    }
+   return NULL;
+
+}
+
 /*
 * Print json data to string
 */
-int json_prints(struct json *json, const char *buffer, unsigned int size, unsigned int indent)
+int json_prints(struct json *json, char *buffer, unsigned int size, unsigned int indent)
 {
     int len = -1;
     FILE *fp = fmemopen((void*)buffer, size,  "w");

@@ -11,6 +11,7 @@ extern "C" {
 #ifndef FMEM_OPEN_SUPPORT
 FILE *fmemopen(void *buf, size_t size, const char *mode);
 #endif
+FILE *fdmemopen(char ***buf, size_t **size);
 char* readall(const char *fname, unsigned int *len);
 
 #ifdef __cplusplus

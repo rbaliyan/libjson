@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 #include <ctype.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -9,6 +10,8 @@
 #include "fsutils.h"
 
 #ifndef FMEM_OPEN_SUPPORT
+#define BUFFER_SIZE 1024
+#define BUFFER_SIZE_EXTRA 512
 
 /*
 * fmem structure to hold the buffer and pointer for the in memeory stream
@@ -17,6 +20,7 @@ struct fmem {
     size_t pos;
     size_t size;
     char *buffer;
+    int dynamic;
 };
 
 
@@ -46,11 +50,17 @@ static int read_buffer(void *handler, char *buf, int size)
 static int write_buffer(void *handler, const char *buf, int size)
 {
     struct fmem *mem = handler;
+    char *buffer = NULL;
     size_t available = mem->size - mem->pos;
     /* Check if we have enough space available */
     if (size > available) {
-        /* Truncate data , can not go beyond the buffer size*/
-        size = available;
+        if((buffer = realloc(mem->buffer, size + mem->pos + BUFFER_SIZE_EXTRA))){
+            mem->buffer = buffer;
+            mem->size = size + mem->pos + BUFFER_SIZE_EXTRA;
+        } else {
+            /* Truncate data , can not go beyond the buffer size*/
+            size = available;
+        }
     }
     /* Copy data in buffer */
     memcpy(mem->buffer + mem->pos, buf, sizeof(char) * size);
@@ -117,16 +127,63 @@ static int close_buffer(void *handler)
 */
 FILE *fmemopen(void *buf, size_t size, const char *mode)
 {
-  // This data is released on fclose.
-  struct fmem* mem = (struct fmem *) malloc(sizeof(struct fmem));
+    if(!buf || size == 0){
+         fprintf(stderr, "Null args\n");
+         return NULL;
+    }
+    // This data is released on fclose.
+    struct fmem* mem = (struct fmem *) malloc(sizeof(struct fmem));
 
-  // Zero-out the structure.
-  memset(mem, 0, sizeof(struct fmem));
+    // Zero-out the structure.
+    memset(mem, 0, sizeof(struct fmem));
+    mem->size = size;
+    mem->buffer = buf;
 
-  mem->size = size;
-  mem->buffer = buf;
+    if((strcmp(mode, "r") == 0)){
+        return fropen(mem, read_buffer);
+    } else if((strcmp(mode, "w") == 0)){
+        return fwopen(mem, write_buffer);
+    } else if((strcmp(mode, "a") == 0)){
+        return fwopen(mem, write_buffer);
+    } else if((strcmp(mode, "w+") == 0)||
+              (strcmp(mode, "r+") == 0)||
+              (strcmp(mode, "rw+") == 0)||
+              (strcmp(mode, "rw") == 0)){
+        return funopen(mem, read_buffer, write_buffer, seek_buffer, close_buffer);
+    } else {
+        fprintf(stderr, "Unkown mode :%s\n", mode);
+    }  
 
-  return funopen(mem, read_buffer, write_buffer, seek_buffer, close_buffer);
+    return NULL;
+}
+
+FILE *fdmemopen(char ***buffer, size_t **size)
+{
+    if(!buffer){
+        fprintf(stderr, "Null args\n");
+        return NULL;
+    }
+    char *buf = NULL;
+    // This data is released on fclose.
+    struct fmem* mem = (struct fmem *) malloc(sizeof(struct fmem));
+
+    // Zero-out the structure.
+    memset(mem, 0, sizeof(struct fmem));
+
+    if((buf = malloc(BUFFER_SIZE))){
+        mem->dynamic = 1;
+        mem->size = BUFFER_SIZE;
+        if(size)
+            *size = &mem->size;
+        *buffer = &mem->buffer; 
+    } else {
+        fprintf(stderr, "Memory allocation failed\n");
+        return NULL;
+    }
+
+    mem->buffer = buf;
+
+    return fwopen(mem, write_buffer);
 }
 
 #endif
