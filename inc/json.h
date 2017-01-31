@@ -38,10 +38,12 @@ enum json_type
 struct json;
 struct json_iter;
 
-int json_loads(const char *start, const char* end, struct json **json);
-int json_load(const char* fname, struct json** json);
+struct json* json_new(void);
+void json_del(struct json* json);
+struct json* json_loads(const char *start, const char* end, int *err);
+struct json* json_load(const char* fname, int *err);
 const char* json_get_err(int err);
-const void* json_get(struct json *json, const char *key, int *type, struct json_iter *iter);
+const void* json_get(struct json *json, const char *key, int *type);
 int json_set(struct json *json, const char *key, int type, void *val);
 const void* json_iter_next(struct json_iter *iter,  int *type);
 int json_print(struct json *json, unsigned int indent);

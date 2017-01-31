@@ -75,6 +75,8 @@ static void json_free_dict(struct json_dict *dict);
 static void json_free_val(struct json_val * va);
 static char *buffer_alloc(size_t size);
 static void buffer_free(const char * buffer);
+static int json_print_val(FILE *stream, struct json_val  *val, unsigned int indent, unsigned int level);
+static int json_print_obj(FILE *stream, struct json *json, unsigned int indent, unsigned int level);
 
 /*
 * Json Object allocate 
@@ -257,7 +259,7 @@ static int json_dict_add(struct json *json, const char *key, const struct json_v
     if( json && key && val ){
         for(dict = json->dict_start; dict; dict = dict->next){
             if(strcmp(dict->key, key)== 0){
-                fprintf(stderr,"%s:%d>key %s can not come in same dict more than once", __func__, __LINE__,key);
+                fprintf(stderr,"%s:%d>key %s can not come in same dict more than once\n", __func__, __LINE__,key);
                 return 0;
             }
         }
@@ -276,7 +278,11 @@ static int json_dict_add(struct json *json, const char *key, const struct json_v
             json->dict_end = dict;
             json->count++;
             err = 1;
+        } else {
+             fprintf(stderr,"%s:%d> Failed to allocate dict\n", __func__, __LINE__);
         }
+    } else {
+        fprintf(stderr,"%s:%d> Invalid args\n", __func__, __LINE__);
     }
     return err;
 }
@@ -770,6 +776,9 @@ static struct json * json_parse_obj(const char *start, const  char *end, const  
     return json;
 }
 
+/*
+* Json Parse buffer
+*/
 static struct json * json_parse(const char *start, const char *end, int *err)
 {
     const char *temp = NULL;
@@ -791,65 +800,6 @@ static struct json * json_parse(const char *start, const char *end, int *err)
 
     return json;
 }
-
-/*
-* Load Json from buffer from memory
-*/
-int json_loads(const char *start, const char* end, struct json **json)
-{
-    int err = JSON_ERR_ARGS;
-
-    /* Check data */
-    if( start && end && json ){
-        /* Process Buffer */
-
-        *json = json_parse(start, end, &err);
-    } else {
-        /* Invalid input */
-        fprintf(stderr, "%s:%d>Invalid params\n",__func__, __LINE__);
-    }
-
-    return err;
-}
-/* 
-* Load JSON data from a file
-*/
-int json_load(const char* fname, struct json **json)
-{
-    const char* temp = NULL;
-    int err = JSON_ERR_ARGS;
-    unsigned int len = 0;
-    char *buffer = NULL;
-
-    /* Check for data*/
-    if(fname && json){
-        /* Read all data */
-        buffer = readall(fname, &len);
-
-        /* Check if data was read correctly */            
-        if(( len > 0 ) && buffer){
-
-            /* Start Parsing */
-            err = json_loads(buffer, buffer + len, json);
-
-            /* Free Buffer */ 
-            free(buffer); 
-        } else {
-            /* Failed to read file in buffer*/
-            fprintf(stderr, "%s:%d>Failed to read file : %s\n", __func__, __LINE__, fname);
-
-            err = JSON_ERR_SYS;
-        }
-    } else {
-        /* Invalid arguments*/
-        fprintf(stderr, "%s:%d>Invalid args", __func__, __LINE__);
-        err = JSON_ERR_ARGS;
-    }
-    return err;
-}
-
-static int json_print_val(FILE *stream, struct json_val  *val, unsigned int indent, unsigned int level);
-static int json_print_obj(FILE *stream, struct json *json, unsigned int indent, unsigned int level);
 /*
 * JSON print json value
 */
@@ -907,7 +857,6 @@ static int json_print_val(FILE *stream, struct json_val  *val, unsigned int inde
 
     return ret;
 }
-
 /*
 * Print indentation for JSON
 */
@@ -964,6 +913,67 @@ static int json_print_obj(FILE *stream, struct json *json, unsigned int indent, 
     return ret;
 }
 
+
+/*
+* Load Json from buffer from memory
+*/
+struct json* json_loads(const char *start, const char* end, int *err)
+{
+    struct json *json = NULL;
+
+    /* Check data */
+    if( start && end ){
+        /* Process Buffer */
+        json = json_parse(start, end, err);
+    } else {
+        /* Invalid input */
+        fprintf(stderr, "%s:%d>Invalid params\n",__func__, __LINE__);
+        if(err) *err = JSON_ERR_ARGS;
+    }
+
+    return json;
+}
+/* 
+* Load JSON data from a file
+*/
+struct json* json_load(const char* fname, int *err)
+{
+    struct json* json = NULL;
+    const char* temp = NULL;
+    unsigned int len = 0;
+    char *buffer = NULL;
+
+    /* Check for data*/
+    if(fname){
+        /* Read all data */
+        buffer = readall(fname, &len);
+
+        /* Check if data was read correctly */            
+        if(( len > 0 ) && buffer){
+
+            /* Start Parsing */
+            json = json_loads(buffer, buffer + len, err);
+
+            /* Free Buffer */ 
+            free(buffer); 
+        } else {
+            /* Failed to read file in buffer*/
+            fprintf(stderr, "%s:%d>Failed to read file : %s\n", __func__, __LINE__, fname);
+
+            if(err)
+                *err = JSON_ERR_SYS;
+            json = NULL;
+        }
+    } else {
+        /* Invalid arguments*/
+        fprintf(stderr, "%s:%d>Invalid args", __func__, __LINE__);
+        if(err)
+            *err = JSON_ERR_ARGS;
+    }
+    return json;
+}
+
+
 /*
 * Print json data on screen
 */
@@ -1002,19 +1012,34 @@ int json_prints(struct json *json, const char *buffer, unsigned int size, unsign
    return -1;
 }
 
+static struct json_iter *json_get_iter(struct json_val *val)
+{
+    struct json_iter *iter = NULL;
 
+    if(val && (val->type == JSON_TYPE_LIST)){
+        iter = calloc(sizeof(struct json_iter), 1);
+        if(iter){
+            /* Set List for Iterator */
+            iter->list = val->list;
+            iter->current = NULL;
+            iter->type = val->type;
+        } else {
+            fprintf(stderr, "Failed to allocate memory for iterator");
+        }
+    }
+
+    return iter;
+}
 /*
 * Get value for key from json
 * List and json object value is not returned, instead iterator is returned 
 */
-const void* json_get(struct json *json, const char *key, int *type, struct json_iter *iter)
+const void* json_get(struct json *json, const char *key, int *type)
 {
     struct json_dict *dict = NULL;
 
     /* Check for valid data  */
-    if(json && key && type && iter){
-        /* Zero iterator */
-        memset(iter, 0, sizeof(struct json_iter));
+    if(json && key && type){
 
         /* Find key in json object */
         for(dict = json->dict_start; dict; dict = dict->next){
@@ -1022,19 +1047,8 @@ const void* json_get(struct json *json, const char *key, int *type, struct json_
             if(strcmp(dict->key, key) == 0 ){
                 /* List and json objects are not returned, instead iterators are returned */
                 if(dict->val->type == JSON_TYPE_LIST){
-                    /* Set List for Iterator */
-                    iter->list = dict->val->list;
-                    iter->current = NULL;
-                    iter->type = JSON_TYPE_LIST;
                     *type = JSON_TYPE_ITER;
-                    return iter;
-                } else if(dict->val->type == JSON_TYPE_OBJ){
-                    /* Set JSON object */
-                    iter->json_obj = dict->val->json_obj;
-                    iter->current = NULL;
-                    iter->type = JSON_TYPE_OBJ;
-                    *type = JSON_TYPE_ITER;
-                    return iter;
+                    return json_get_iter(dict->val);
                 }
                 /* Rest of data can be returned */
                 *type = dict->val->type;
@@ -1056,9 +1070,32 @@ int json_set(struct json *json, const char *key, int type, void *val)
     struct json_dict *dict = NULL;
     struct json_val  *json_val = NULL;
     char * key_copy = NULL;
+    char * val_copy = NULL;
 
     /* Check data */
-    if(json && key && type && type != JSON_TYPE_LIST){
+    if(json && key && type != JSON_TYPE_LIST){
+        if(val && (type == JSON_TYPE_STR)){
+            if((val_copy = buffer_alloc(strlen((char*)val)))){
+                strcpy(val_copy, val);
+                val = val_copy;
+            } else {
+                fprintf(stderr, "%s:%d> Memeory allocation failed\n", __func__, __LINE__);
+                err = JSON_ERR_NO_MEM;
+                return err; 
+            }
+        }
+
+        if((key_copy = buffer_alloc(strlen(key)))){
+            strcpy(key_copy, key);
+            key = key_copy;
+        }  else {
+            fprintf(stderr, "%s:%d> Memeory allocation failed\n", __func__, __LINE__);
+            err = JSON_ERR_NO_MEM;
+            if(val_copy)
+                buffer_free(val_copy);
+            return err; 
+        }
+
         /* Find key in json object */
         for(dict = json->dict_start; dict; dict = dict->next){
             /* Match dict key */
@@ -1096,35 +1133,43 @@ int json_set(struct json *json, const char *key, int type, void *val)
                     if(dict->next){
                         dict->next->prev = dict->prev;
                     }
+                    dict->next = dict->prev = NULL;
                     json_free_dict(dict);
                     err = JSON_ERR_SUCCESS;
                 }
+
+                break;
             }
         }
         /* Check if No match found */
-        if((dict == NULL) && val){
-            if((key_copy = buffer_alloc(strlen(key)))){
-                /* Make a copy of key */
-                strcpy(key_copy, key);
+        if(dict == NULL){
+            if(val){
                 if((json_val = json_alloc_val(type, (const void*)val))){
                     /* No match found */
-                    if(json_dict_add(json, key, json_val)){
+                    if(!json_dict_add(json, key_copy, json_val)){
                         fprintf(stderr, "%s:%d> Memeory allocation failed\n", __func__, __LINE__);
                         err = JSON_ERR_NO_MEM;
-                        buffer_free(key_copy);
+                    } else {
+                        err = JSON_ERR_SUCCESS;
                     }
                 } else {
                     /* Failed to allocate memory*/
                     fprintf(stderr, "%s:%d> Memeory allocation failed\n", __func__, __LINE__);
                     err = JSON_ERR_NO_MEM;
-                    buffer_free(key_copy);
                 }
             } else {
                 /* Buffer allocation failed for key*/
-                fprintf(stderr, "%s:%d> Memeory allocation failed\n", __func__, __LINE__);
-                err = JSON_ERR_NO_MEM;
+                fprintf(stderr, "%s:%d> Key:%s Not found\n", __func__, __LINE__, key);
+                err = JSON_ERR_KEY_NOT_FOUND;
             }
         }
+    }
+
+    if(err != JSON_ERR_SUCCESS){
+        if(val_copy)
+                buffer_free(val_copy);
+        if(key_copy)
+                buffer_free(key_copy);
     }
     return err;
 }
@@ -1143,17 +1188,28 @@ const void* json_iter_next(struct json_iter *iter,  int *type)
             }
             
             if(iter->current){
+                /* For List iterator is returned*/
+                if(iter->current->type == JSON_TYPE_LIST){
+                    *type = JSON_TYPE_ITER;
+                    return json_get_iter(iter->current);
+                }
+                /* Rest of data can be returned */
                 *type = iter->current->type;
                 return iter->current->data;
             } else {
                 *type = JSON_TYPE_NULL;
             }
-        } else if(iter->type == JSON_TYPE_OBJ){
-
-        } else {
-
-        }
+        } 
     }
 
     return NULL;
+}
+
+struct json* json_new(void)
+{
+    return json_alloc_obj();
+}
+void json_del(struct json* json)
+{
+    json_free(json);
 }
