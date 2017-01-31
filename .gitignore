@@ -1,4 +1,8 @@
 #Ignore files in .idea directory
+*.E
+*.d
+*.a
+*.o
 *.csv
 .idea/
 *.pyc

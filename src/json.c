@@ -1096,17 +1096,17 @@ int json_prints(struct json *json, char *buffer, unsigned int size, unsigned int
    return -1;
 }
 
-static struct json_iter *json_get_iter(struct json_val *val)
+static struct json_iter *json_get_iter(struct json_list *list)
 {
     struct json_iter *iter = NULL;
 
-    if(val && (val->type == JSON_TYPE_LIST)){
+    if(list){
         iter = calloc(sizeof(struct json_iter), 1);
         if(iter){
             /* Set List for Iterator */
-            iter->list = val->list;
+            iter->list = list;
             iter->current = NULL;
-            iter->type = val->type;
+            iter->type = JSON_TYPE_LIST;
         } else {
             fprintf(stderr, "Failed to allocate memory for iterator");
         }
@@ -1123,20 +1123,24 @@ const void* json_get(struct json *json, const char *key, int *type)
     struct json_dict *dict = NULL;
 
     /* Check for valid data  */
-    if(json && key && type){
-
-        /* Find key in json object */
-        for(dict = json->dict_start; dict; dict = dict->next){
-            /* Check Key */
-            if(strcmp(dict->key, key) == 0 ){
-                /* List and json objects are not returned, instead iterators are returned */
-                if(dict->val->type == JSON_TYPE_LIST){
-                    *type = JSON_TYPE_ITER;
-                    return json_get_iter(dict->val);
+    if(json && type){
+        if(json->list){
+            *type = JSON_TYPE_ITER;
+            return json_get_iter(json->list);
+        } else if(key){
+            /* Find key in json object */
+            for(dict = json->dict_start; dict; dict = dict->next){
+                /* Check Key */
+                if(strcmp(dict->key, key) == 0 ){
+                    /* List and json objects are not returned, instead iterators are returned */
+                    if(dict->val->type == JSON_TYPE_LIST){
+                        *type = JSON_TYPE_ITER;
+                        return json_get_iter(dict->val->list);
+                    }
+                    /* Rest of data can be returned */
+                    *type = dict->val->type;
+                    return dict->val->data;
                 }
-                /* Rest of data can be returned */
-                *type = dict->val->type;
-                return dict->val->data;
             }
         }
     }
@@ -1275,7 +1279,7 @@ const void* json_iter_next(struct json_iter *iter,  int *type)
                 /* For List iterator is returned*/
                 if(iter->current->type == JSON_TYPE_LIST){
                     *type = JSON_TYPE_ITER;
-                    return json_get_iter(iter->current);
+                    return json_get_iter(iter->current->list);
                 }
                 /* Rest of data can be returned */
                 *type = iter->current->type;
@@ -1293,6 +1297,7 @@ struct json* json_new(void)
 {
     return json_alloc_obj();
 }
+
 void json_del(struct json* json)
 {
     json_free(json);
