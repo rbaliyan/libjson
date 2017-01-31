@@ -46,6 +46,7 @@ struct json_dict
 struct json
 {
     size_t count;
+    struct json_list *list;
     struct json_dict *dict_start;
     struct json_dict *dict_end;
 };
@@ -78,7 +79,7 @@ static char *buffer_alloc(size_t size);
 static void buffer_free(const char * buffer);
 static int json_print_val(FILE *stream, struct json_val  *val, unsigned int indent, unsigned int level);
 static int json_print_obj(FILE *stream, struct json *json, unsigned int indent, unsigned int level);
-
+static int json_indent(FILE *stream, int indent, int level);
 /*
 * Json Object allocate 
 */
@@ -172,11 +173,16 @@ static void json_free(struct json* json)
 {
     struct json_dict *dict  = NULL;
     struct json_dict *next_dict  = NULL;
-    /* Traverse all dicts*/
-    for(dict = json->dict_start; dict; dict=next_dict){
-        /* Save next dict and free current*/
-        next_dict = dict->next;
-        json_free_dict(dict);
+
+    if(json->list){
+        json_free_list(json->list);
+    } else {
+        /* Traverse all dicts*/
+        for(dict = json->dict_start; dict; dict=next_dict){
+            /* Save next dict and free current*/
+            next_dict = dict->next;
+            json_free_dict(dict);
+        }
     }
 }
 
@@ -631,6 +637,7 @@ static struct json * json_parse_obj(const char *start, const  char *end, const  
     const char *temp = NULL;
     struct json * json = NULL;
     struct json_val  *val = NULL;
+    struct json_list *list = NULL;
     int len = 0;
 
     /* Check for args */
@@ -643,13 +650,38 @@ static struct json * json_parse_obj(const char *start, const  char *end, const  
 
         /* Object should start with { */
         if(*start != '{'){
-            fprintf(stderr, "%s:%d>Missing {",__func__, __LINE__);
-            if(err)
-                *err = JSON_ERR_PARSE;
-            *raw = begin;
-            return NULL;
-        }
+            if(*start == '['){
+                list = json_parse_list(start, end, &temp, err);
+                start = trim(temp, end);
+                if(start < end){
+                    fprintf(stderr, "%s:%d> Invalid json data\n", __func__, __LINE__);
+                    json_free_list(list);
+                    list = NULL;
+                    return NULL;
+                } else {
+                    /* Alocate JSON object */
+                    if(!(json=json_alloc_obj())){
+                        fprintf(stderr, "%s:%d>Failed to allocate json object\n", __func__, __LINE__);
+                        if(err)
+                            *err = JSON_ERR_NO_MEM;
+                        *raw = begin;
+                        json_free_list(list);
+                        return NULL;
+                    }
+                    *raw = temp;
+                    json->list = list;
+                    return json;
+                }
+            }
 
+            if(list == NULL){
+                fprintf(stderr, "%s:%d>Missing {",__func__, __LINE__);
+                if(err)
+                    *err = JSON_ERR_PARSE;
+                *raw = begin;
+                return NULL;
+            }
+        }
         /* Trim after { */
         start = trim(start + 1, end);
 
@@ -801,6 +833,24 @@ static struct json * json_parse(const char *start, const char *end, int *err)
 
     return json;
 }
+static int json_print_list(FILE *stream, struct json_list *list, unsigned int indent, unsigned int level)
+{
+    int ret = 0;
+    ret+=fprintf(stream, "[");
+    int count = 0;
+    struct json_val *val;
+    for(val=list->start;val; val=val->next){
+        if(count){
+            fprintf(stream, ",");
+            ret++;
+        }
+        count++;
+        ret += json_print_val(stream, val, indent, level);
+    }  
+    ret+=fprintf(stream, "]");
+
+    return ret;
+}
 /*
 * JSON print json value
 */
@@ -840,17 +890,7 @@ static int json_print_val(FILE *stream, struct json_val  *val, unsigned int inde
             ret = fprintf(stream, "0%o",val->uint_number);
         break;
         case JSON_TYPE_LIST:
-            fprintf(stream, "[");
-            for(val=val->list->start;val; val=val->next){
-                if(count){
-                    fprintf(stream, ",");
-                    ret++;
-                }
-                count++;
-                ret += json_print_val(stream, val, indent, level);
-            }  
-            fprintf(stream, "]");
-            ret += 2;
+            ret = json_print_list(stream, val->list, indent, level);
         break;
         default:
         break;
@@ -980,6 +1020,9 @@ struct json* json_load(const char* fname, int *err)
 */
 int json_print(struct json *json, unsigned int indent)
 {
+    if(json->list){
+        return json_print_list(stdout, json->list,indent, 0 );
+    }
     return json_print_obj(stdout, json, indent, 0);
 }
 
@@ -989,8 +1032,15 @@ int json_print(struct json *json, unsigned int indent)
 int json_printf(struct json *json, const char *fname, unsigned int indent)
 {
     FILE *fp = fopen(fname, "w");
+    int len = -1;
     if(fp){
-         return json_print_obj(fp, json, indent, 0);
+        if(json->list){
+            len = json_print_list(fp, json->list,indent, 0 );
+        } else {
+            len = json_print_obj(fp, json, indent, 0);
+        }
+        fclose(fp);
+        return len;
     } else {
         fprintf(stderr, "%s:%d>Failed to open file : %s", __func__, __LINE__, fname);
     }
@@ -1006,11 +1056,16 @@ char* json_str(struct json *json, int *len, unsigned int indent)
     int print_length = 0;
     FILE *fp = fdmemopen(&buf_ptr, &size_ptr);
     if(fp){
-         print_length = json_print_obj(fp, json, indent, 0);
+         if(json->list){
+            print_length = json_print_list(fp, json->list,indent, 0 );
+         } else {
+            print_length = json_print_obj(fp, json, indent, 0);
+         }
          buffer = *buf_ptr;
          size = *size_ptr;
          fclose(fp);
          if(len)*len = print_length;
+         buffer[print_length] = 0;
          return buffer;
     } else {
         fprintf(stderr, "%s:%d>Failed to initialize buffer as file", __func__, __LINE__);
@@ -1027,7 +1082,12 @@ int json_prints(struct json *json, char *buffer, unsigned int size, unsigned int
     int len = -1;
     FILE *fp = fmemopen((void*)buffer, size,  "w");
     if(fp){
-         len = json_print_obj(fp, json, indent, 0);
+        if(json->list){
+            len = json_print_list(fp, json->list,indent, 0 );
+         } else {
+            len = json_print_obj(fp, json, indent, 0);
+         }
+         buffer[len] = 0;
          fclose(fp);
          return len;
     } else {
