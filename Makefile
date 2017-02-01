@@ -107,13 +107,14 @@ TARGET_DEBUG ?= $(LIB_DIR)/$(LIB_PREFIX)$(LIB_NAME_DEBUG).$(LIB_EXT)
 # Targets
 ############################################
 all: release test lib
-debug Debug: CFLAGS += $(OPTIMIZE)
+release Release: CFLAGS += $(OPTIMIZE)
 release Release:$(TARGET)
 debug Debug: CFLAGS += $(DEBUG)
 debug Debug: $(TARGET)
 
 lib    :  $(TARGET)
-
+test_run: CFLAGS += $(DEBUG)
+test: CFLAGS += $(DEBUG)
 test : $(BIN_DIR)/$(TEST_EXEC)
 test_run: test
 	@echo "Runing tests"

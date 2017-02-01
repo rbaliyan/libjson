@@ -33,6 +33,8 @@ enum json_type
     JSON_TYPE_LIST,
     /* Rest aren't for parsing*/
     JSON_TYPE_ITER,
+    JSON_TYPE_DICT,
+    JSON_TYPE_VAL,
 };
 
 struct json;
@@ -43,13 +45,14 @@ void json_del(struct json* json);
 struct json* json_loads(const char *start, const char* end, int *err);
 struct json* json_load(const char* fname, int *err);
 const char* json_get_err(int err);
-const void* json_get(struct json *json, const char *key, int *type);
-int json_set(struct json *json, const char *key, int type, void *val);
+const void* json_get(const struct json *json, const char *key, int *type);
+int json_set(struct json *json, char *key, int type, void *val);
 const void* json_iter_next(struct json_iter *iter,  int *type);
-int json_print(struct json *json, unsigned int indent);
-int json_printf(struct json *json, const char *fname, unsigned int indent);
-int json_prints(struct json *json, char *buffer, unsigned int size, unsigned int indent);
-char* json_str(struct json *json, int *len, unsigned int indent);
+int json_print(const struct json *json, unsigned int indent);
+int json_printf(const struct json *json, const char *fname, unsigned int indent);
+int json_prints(const struct json *json, char *buffer, unsigned int size, unsigned int indent);
+const char* json_str(const struct json *json, int *len, unsigned int indent);
+struct json_iter *json_keys(const struct json* json);
 #ifdef __cplusplus
 }
 #endif
