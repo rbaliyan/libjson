@@ -5,13 +5,18 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <limits.h>
+#ifdef DARWIN_SYS
 #include <sys/mman.h>
+#endif
 #include "utils.h"
 
 
-/**
+/*
+* @brief skip spaces in buffer 
 * The same function can be used in reverse also, by reversing arguments
-* just skip all spaces
+* @param start start of buffer
+* @param end end of buffer
+* @return rest of buffer after removing space
 */
 const char* trim(const char *start, const char *end)
 {
@@ -33,7 +38,12 @@ const char* trim(const char *start, const char *end)
     return start;
 }
 
-/* Check is given number is in hexa decimal format*/
+/*
+* @brief Check if given number is in hexa decimal format
+* @param start start of buffer
+* @param end end of buffer
+* @return true if string representation is in hex
+*/
 bool is_hex(const char *start, const char *end)
 {
     /* Check data*/
@@ -48,7 +58,12 @@ bool is_hex(const char *start, const char *end)
     return false;
 }
 
-/* Check if given number is in octal format*/
+/*
+* @brief Check if given number is in octal decimal format
+* @param start start of buffer
+* @param end end of buffer
+* @return true if string representation is in octal
+*/
 bool is_octal(const char *start, const char *end)
 {
     /*check for data*/
@@ -62,8 +77,10 @@ bool is_octal(const char *start, const char *end)
     return false;
 }
 
-/* Convert characters to hex digit,
-* For invalid hex return -1 
+/*
+* @brief Convert character to hex
+* @param ch character
+* @return hex value or -1 for invalid data
 */
 int tohex(char ch)
 {
@@ -84,7 +101,11 @@ int tohex(char ch)
     return val;
 }
 
-/* Convert character to digit , return -1 for invalid value */
+/*
+* @brief Convert character to digit
+* @param ch character
+* @return digit value or -1 for invalid data
+*/
 int todigit(char ch)
 {
     int val = -1;
@@ -99,8 +120,12 @@ int todigit(char ch)
 }
 
 /*
-* Parse string representation of hex value
-* For overflow number is trancated
+* @brief Convert string to hex number
+* @param start start of buffer
+* @param end end of buffer
+* @param raw rest of data after parsing
+* @param overflow overflow occured and data got trucnated
+* @return integer
 */
 unsigned int get_hex(const char *start, const char *end, const char **raw,bool *overflow)
 {
@@ -151,9 +176,13 @@ unsigned int get_hex(const char *start, const char *end, const char **raw,bool *
     return (is_overflow == false) ? number : number_truncated;
 }
 
-/* Read octal in string and return integer
-* for any error set raw ptr to start to indicate
-* nothing was parsed 
+/*
+* @brief Convert string to octal number
+* @param start start of buffer
+* @param end end of buffer
+* @param raw rest of data after parsing
+* @param overflow overflow occured and data got trucnated
+* @return integer
 */
 unsigned int get_octal(const char *start, const char *end,const  char **raw, bool *overflow)
 {
@@ -201,10 +230,12 @@ unsigned int get_octal(const char *start, const char *end,const  char **raw, boo
     return (is_overflow == false) ? number : number_truncated;
 }
 
-/* 
-* Read fraction in string and return double
-* for any error set raw ptr to start to indicate
-* nothing was parsed 
+/*
+* @brief Convert string to fractional part of number
+* @param start start of buffer
+* @param end end of buffer
+* @param raw rest of data after parsing
+* @return fractional value
 */
 double get_fraction(const char *start, const char *end, const  char **raw)
 {
@@ -247,8 +278,13 @@ double get_fraction(const char *start, const char *end, const  char **raw)
     return number;
 }
 
+
 /*
-* Parse boolean values
+* @brief Convert string to boolean
+* @param start start of buffer
+* @param end end of buffer
+* @param raw rest of data after parsing
+* @return boolean
 */
 bool get_boolean(const char *start, const char *end,const  char** raw)
 {
@@ -275,9 +311,12 @@ bool get_boolean(const char *start, const char *end,const  char** raw)
 }
 
 /*
-* Parse string in double quotes, 
-* string may also contain double quotes after escaping with backslash
-* double quotes are changed to Null characters
+* @brief parse quoted string
+* @param start start of buffer
+* @param end end of buffer
+* @param raw rest of data after parsing
+* @param len length of string
+* @return pointer to string 
 */
 const char *get_string(const char *start, const char *end,const  char** raw, int *len)
 {
@@ -327,7 +366,15 @@ const char *get_string(const char *start, const char *end,const  char** raw, int
     return NULL;
 }
 
-/* Parse long number representation, its is also used to parse the iteger part of deouble number*/
+/*
+* @brief Convert string to long number
+* @param start start of buffer
+* @param end end of buffer
+* @param raw rest of data after parsing
+* @param overflow overflow occured and data got trucnated
+* @param unsigned_flag if number if unsigned
+* @return long number
+*/
 long get_integer(const char *start, const char *end,const  char** raw, bool *overflow, bool *unsigned_flag)
 {
     long number = 0;

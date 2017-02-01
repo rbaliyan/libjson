@@ -53,6 +53,7 @@ struct json
     struct json_dict *dict_end;
 };
 
+/* Json Iterator */
 struct json_iter
 {
     union{
@@ -72,23 +73,23 @@ struct json_iter
     enum json_type type;
 };
 
-
+/* Function declarations */
 static int json_dict_add(struct json *json, const char *key, const struct json_val * val);
 static int json_list_add(struct json_list * list, struct json_val * val);
 static struct json * json_parse(const char *start, const char *end, int *err);
 static struct json_list * json_parse_list(const char *start, const char *end, const char **raw, int *err);
 static struct json_val * json_parse_val(const char *start, const char *end, const char **raw, int *err);
 static struct json * json_parse_obj(const char *start, const  char *end, const  char **raw, int *err);
-
 static struct json * json_alloc_obj();
 static struct json_val * json_alloc_val(int json_type, const void* data);
 static struct json_list * json_alloc_list();
 static struct json_dict * json_alloc_dict(const char* key, const struct json_val  * val);
-static void json_free(const struct json * json);
-static void json_free_list(const struct json_list * list);
-static void json_free_dict(const struct json_dict *dict);
-static void json_free_val(const struct json_val * va);
-static void json_free_type(int type, const void *data);
+static void json_free(struct json * json);
+static void json_free_list(struct json_list * list);
+static void json_free_dict(struct json_dict *dict);
+static void json_free_val(struct json_val * va);
+static void json_free_type(int type, void *data);
+void json_free_iter(struct json_iter *iter);
 static char *buffer_alloc(size_t size);
 static void buffer_free(const char * buffer);
 static int json_print_val(FILE *stream, const struct json_val  *val, unsigned int indent, unsigned int level);
@@ -99,8 +100,10 @@ struct json_val* json_clone_val(const struct json_val* src_val, int *err);
 static char* json_clone_str(const char* src_str, int *err);
 static struct json_list* json_clone_list(const struct json_list *src_list, int *err);
 static struct json* json_clone_obj(const struct json* src_json, int *err);
+
 /*
-* Json Object allocate 
+* @brief Json Object allocate 
+* @return pointer to allocated json object
 */
 static struct json* json_alloc_obj()
 {
@@ -117,7 +120,10 @@ static struct json* json_alloc_obj()
 }
 
 /*
-* Json Value allocate 
+* @brief Json Value allocate
+* @param json_type Json Type fpr the value
+* @param Pointer to data 
+* @return pointer to json value object
 */
 static struct json_val * json_alloc_val(int json_type, const void* data)
 {
@@ -163,7 +169,8 @@ static struct json_val * json_alloc_val(int json_type, const void* data)
 }
 
 /*
-* Json List allocate
+* @brief Json List allocate
+* @return Pointer to json list
 */
 static struct json_list * json_alloc_list()
 {
@@ -177,8 +184,12 @@ static struct json_list * json_alloc_list()
     }
     return list;
 }
+
 /*
-* Json dict allocate 
+* @brief Json dict allocate
+* @param key Dict key
+* @param val Json Value 
+* @return Pointer to dict object 
 */
 static struct json_dict * json_alloc_dict(const char* key, const struct json_val  * val)
 {
@@ -194,9 +205,18 @@ static struct json_dict * json_alloc_dict(const char* key, const struct json_val
 }
 
 /*
-* Json Object free 
+* @brief Free Json Iterator
+* @param iter Json Iterator
 */
-static void json_free(const struct json* json)
+void json_free_iter(struct json_iter *iter)
+{
+    free(iter);
+}
+/*
+* @brief Json Object free
+* @param json Json Object 
+*/
+static void json_free( struct json* json)
 {
     struct json_dict *dict  = NULL;
     struct json_dict *next_dict  = NULL;
@@ -211,24 +231,29 @@ static void json_free(const struct json* json)
             json_free_dict(dict);
         }
     }
+    free(json);
 }
 
 /*
-* Json dict free 
+* @param Json dict free 
+* @param dict Json dict object pointer
 */
-static void json_free_dict(const struct json_dict *dict)
+static void json_free_dict(struct json_dict *dict)
 {
     /* Dict Key is also allcated at the time of parsing*/
     buffer_free(dict->key);
 
     /* Free Value */
     json_free_val(dict->val);
+
+    free(dict);
 }
 
 /*
-* Json list free 
+* @brief Json list free 
+* @param list Json list object
 */
-static void json_free_list(const struct json_list * list)
+static void json_free_list(struct json_list * list)
 {
     struct json_val * val = NULL;
     struct json_val * temp = NULL;
@@ -238,12 +263,15 @@ static void json_free_list(const struct json_list * list)
         temp = val->next;
         json_free_val(val);
     }
+
+    free(list);
 }
 
 /*
-* Json value free 
+* @brief Json value free 
+* @param val Json value object
 */
-static void json_free_val(const struct json_val * val)
+static void json_free_val(struct json_val * val)
 {
     /* Free Value based on the its type*/
     switch(val->type){
@@ -263,11 +291,15 @@ static void json_free_val(const struct json_val * val)
         /* Rest types do not need free*/
         break;
     }
+    free(val);
 }
+
 /*
-* Json Free based on type
+* @brief Json Free based on type
+* @param type Json Type for data
+* @param data Pointer to data to be freed
 */
-static void json_free_type(int type, const void *data)
+static void json_free_type(int type, void *data)
 {
     switch(type){
         case JSON_TYPE_STR:
@@ -288,7 +320,9 @@ static void json_free_type(int type, const void *data)
 }
 
 /*
-* Buffer allocate 
+* @brief Buffer allocate 
+* @param size Size of buffer
+* @return Pointer to allocated buffer
 */
 static char *buffer_alloc(size_t size)
 {
@@ -296,7 +330,8 @@ static char *buffer_alloc(size_t size)
 }
 
 /*
-* Buffer free
+* @brief Buffer free
+* @param buffer Pointer to buffer
 */
 static void buffer_free(const char *buffer)
 {
@@ -304,7 +339,11 @@ static void buffer_free(const char *buffer)
 }
 
 /*
-* A Simple dict based on linked list
+* @brief A simple dict based on linked list
+* @param json Json object
+* @param key Dict Key
+* @param val Dict Value
+* @return Pointer to allocated buffer
 */
 static int json_dict_add(struct json *json, const char *key, const struct json_val * val)
 {
@@ -343,7 +382,12 @@ static int json_dict_add(struct json *json, const char *key, const struct json_v
     }
     return err;
 }
-
+/*
+* @brief Append json value in json list
+* @param list Json List
+* @param val Json Value
+* @return 0 for Failure, 1 for success
+*/
 static int json_list_add(struct json_list *list, struct json_val * val)
 {
     int err = 0;
@@ -367,7 +411,12 @@ static int json_list_add(struct json_list *list, struct json_val * val)
 }
 
 /*
-* Parse List of values
+* @brief Parse a json list in buffer
+* @param start Pointer to start of buffer
+* @param end Pointer to end of buffer
+* @param raw Pointer to plcae holder for data remaining after parsing
+* @param err Pointer for error status
+* @return Json list
 */
 static struct json_list * json_parse_list(const char *start, const char *end,const char **raw, int *err)
 {
@@ -476,8 +525,12 @@ static struct json_list * json_parse_list(const char *start, const char *end,con
 }
 
 /*
-* Json Parse Value
-*
+* @brief Parse a json value in buffer
+* @param start Pointer to start of buffer
+* @param end Pointer to end of buffer
+* @param raw Pointer to plcae holder for data remaining after parsing
+* @param err Pointer for error status
+* @return Json value
 */
 static struct json_val * json_parse_val(const char *start, const char *end,const  char **raw, int *err)
 {
@@ -488,12 +541,12 @@ static struct json_val * json_parse_val(const char *start, const char *end,const
     unsigned int uint_number;
     bool bool_val = false;
     long long_val = 0;
-    int json_type;
+    int json_type = JSON_TYPE_INVALID;
     bool overflow = false;
     bool unsigned_flag = false; 
     int len = 0;
     int sign = 1;
-    void *val;
+    void *val = NULL;
 
     /* Check for valid dat */
     if(start && end && raw && ( start < end )){
@@ -707,7 +760,12 @@ static struct json_val * json_parse_val(const char *start, const char *end,const
 
 
 /*
-* Parse single Json object as dcitionary
+* @brief Parse a json object in buffer
+* @param start Pointer to start of buffer
+* @param end Pointer to end of buffer
+* @param raw Pointer to plcae holder for data remaining after parsing
+* @param err Pointer for error status
+* @return Json object
 */
 static struct json * json_parse_obj(const char *start, const  char *end, const  char **raw, int *err)
 {
@@ -896,9 +954,12 @@ static struct json * json_parse_obj(const char *start, const  char *end, const  
 
     return json;
 }
-
 /*
-* Json Parse buffer
+* @brief Parse a json in buffer
+* @param start Pointer to start of buffer
+* @param end Pointer to end of buffer
+* @param err Pointer for error status
+* @return Json object
 */
 static struct json * json_parse(const char *start, const char *end, int *err)
 {
@@ -923,6 +984,15 @@ static struct json * json_parse(const char *start, const char *end, int *err)
 
     return json;
 }
+
+/*
+* @brief Print Json List to stream
+* @param stream Stream for output
+* @param list Json List
+* @param indent Indentation to be used for pertty printing
+* @param level Depth level inside Json Obect
+* @return number of bytes printed
+*/
 static int json_print_list(FILE *stream, const struct json_list *list, unsigned int indent, unsigned int level)
 {
     int ret = 0;
@@ -941,8 +1011,14 @@ static int json_print_list(FILE *stream, const struct json_list *list, unsigned 
 
     return ret;
 }
+
 /*
-* JSON print json value
+* @brief Print Json Value to stream
+* @param stream Stream for output
+* @param val Json Value
+* @param indent Indentation to be used for pertty printing
+* @param level Depth level inside Json Obect
+* @return number of bytes printed
 */
 static int json_print_val(FILE *stream, const struct json_val  *val, unsigned int indent, unsigned int level)
 {
@@ -972,7 +1048,7 @@ static int json_print_val(FILE *stream, const struct json_val  *val, unsigned in
             ret = fprintf(stream, "%llu",val->long_number);
         break;*/
         case JSON_TYPE_UINT:
-            ret = fprintf(stream, "%lu",val->long_number);
+            ret = fprintf(stream, "%lu",(unsigned long)val->long_number);
         break;
         case JSON_TYPE_HEX:
             ret = fprintf(stream, "0x%0x",val->uint_number);
@@ -989,8 +1065,13 @@ static int json_print_val(FILE *stream, const struct json_val  *val, unsigned in
 
     return ret;
 }
+
 /*
-* Print indentation for JSON
+* @brief Print Indentation to stream
+* @param stream Stream for output
+* @param indent Indentation to be used for pertty printing
+* @param level Depth level inside Json Obect
+* @return number of bytes printed
 */
 static int json_indent(FILE *stream, int indent, int level)
 {
@@ -1007,7 +1088,12 @@ static int json_indent(FILE *stream, int indent, int level)
 }
 
 /*
-* JSON print single object
+* @brief Print Json object to stream
+* @param stream Stream for output
+* @param json Json object
+* @param indent Indentation to be used for pertty printing
+* @param level Depth level inside Json Obect
+* @return number of bytes printed
 */
 static int json_print_obj(FILE *stream, const struct json *json, unsigned int indent, unsigned int level)
 {
@@ -1045,7 +1131,12 @@ static int json_print_obj(FILE *stream, const struct json *json, unsigned int in
     return ret;
 }
 
-
+/*
+* @brief Crate json iterator
+* @param type Json Iterator type
+* @param data Data for json iterator
+* @return Json Iterator
+*/
 static struct json_iter *json_get_iter(int type, const void* data)
 {
     struct json_iter *iter = NULL;
@@ -1078,29 +1169,42 @@ static struct json_iter *json_get_iter(int type, const void* data)
 }
 
 
-
+/*
+* @brief Clone simple string
+* @param src_str String to be cloned
+* @param err plcaeholder for error
+* @return Pointer to new generated string
+*/
 static char* json_clone_str(const char* src_str, int *err)
 {
     char *str = NULL;
     int len = 0;
-    len = strlen(src_str);
-    if( len > 0 ){
-        if((str = buffer_alloc(len))){
-            strcpy(str, src_str);
+    if(src_str){
+        len = strlen(src_str);
+        if( len > 0 ){
+            if((str = buffer_alloc(len+1))){
+                strcpy(str, src_str);
+            } else {
+                fprintf(stderr, "Memory allocation failure\n");
+                if(err)
+                    *err = JSON_ERR_NO_MEM;
+            }
         } else {
-            fprintf(stderr, "Memory allocation failure\n");
+            fprintf(stderr, " Null String\n");
             if(err)
-                *err = JSON_ERR_NO_MEM;
+                *err = JSON_ERR_ARGS;
         }
-    } else {
-        fprintf(stderr, " Null String\n");
-        if(err)
-            *err = JSON_ERR_ARGS;
     }
 
     return str;
 }
 
+/*
+* @brief Clone json value
+* @param src_val Json value to be cloned
+* @param err plcaeholder for error
+* @return Pointer to new generated json value
+*/
 struct json_val* json_clone_val(const struct json_val* src_val, int *err)
 {
     struct json_val* val = NULL;
@@ -1132,7 +1236,12 @@ struct json_val* json_clone_val(const struct json_val* src_val, int *err)
 
     return val;
 }
-
+/*
+* @brief Clone json list
+* @param src_list Json list to be cloned
+* @param err plcaeholder for error
+* @return Pointer to new generated json list
+*/
 static struct json_list* json_clone_list(const struct json_list *src_list, int *err)
 {
     struct json_list* list = NULL;
@@ -1165,6 +1274,12 @@ static struct json_list* json_clone_list(const struct json_list *src_list, int *
     return list;
 }
 
+/*
+* @brief Clone json object
+* @param src_val Json object to be cloned
+* @param err plcaeholder for error
+* @return Pointer to new generated json object
+*/
 static struct json* json_clone_obj(const struct json* src_json, int *err)
 {
     struct json* json = NULL;
@@ -1222,6 +1337,13 @@ static struct json* json_clone_obj(const struct json* src_json, int *err)
     return json;
 }
 
+/*
+* @brief Clone json type
+* @param type Type of data
+* @param data data to be cloned
+* @param err plcaeholder for error
+* @return Pointer to new cloned data
+*/
 static void* json_clone_type(int type, const void* data, int *err)
 {
     void *ret = NULL;
@@ -1247,7 +1369,11 @@ static void* json_clone_type(int type, const void* data, int *err)
 }
 
 /*
-* Load Json from buffer from memory
+* @brief Load a json oject from buffer
+* @param start Pointer to start of buffer
+* @param end Pointer to end of buffer
+* @param err Pointer for error status
+* @return Json object
 */
 struct json* json_loads(const char *start, const char* end, int *err)
 {
@@ -1265,8 +1391,12 @@ struct json* json_loads(const char *start, const char* end, int *err)
 
     return json;
 }
-/* 
-* Load JSON data from a file
+
+/*
+* @brief Load a json oject from file
+* @param fname filename
+* @param err Pointer for error status
+* @return Json object
 */
 struct json* json_load(const char* fname, int *err)
 {
@@ -1307,7 +1437,10 @@ struct json* json_load(const char* fname, int *err)
 
 
 /*
-* Print json data on screen
+* @brief Print json object to stdout
+* @param json Json object
+* @param indent Indetation for pretty printing
+* @return Number of bytes printed
 */
 int json_print(const struct json *json, unsigned int indent)
 {
@@ -1317,8 +1450,14 @@ int json_print(const struct json *json, unsigned int indent)
     return json_print_obj(stdout, json, indent, 0);
 }
 
+
+
 /*
-* Print json data to File
+* @brief Print json object to file
+* @param json Json object
+* @param fname Filename for output
+* @param indent Indetation for pretty printing
+* @return Number of bytes printed
 */
 int json_printf(const struct json *json, const char *fname, unsigned int indent)
 {
@@ -1338,8 +1477,14 @@ int json_printf(const struct json *json, const char *fname, unsigned int indent)
    return -1;
 }
 
+
 /*
-* Print json data to string
+* @brief Print json object to a buffer
+* @param json Json object
+* @param buffer Buffer where json needs to be printed
+* @param size Size of buffer
+* @param indent Indetation for pretty printing
+* @return Number of bytes printed
 */
 int json_prints(const struct json *json, char *buffer, unsigned int size, unsigned int indent)
 {
@@ -1360,6 +1505,14 @@ int json_prints(const struct json *json, char *buffer, unsigned int size, unsign
    return -1;
 }
 
+
+/*
+* @brief Convert json to string representation (Dynamically generated buffer)
+* @param json Json object
+* @param len Pointer to length where length of string will be saved
+* @param indent Indetation for pretty printing
+* @return Pointer to json string representation
+*/
 const char* json_str(const struct json *json, int *len, unsigned int indent)
 {
     char **buf_ptr;
@@ -1386,9 +1539,14 @@ const char* json_str(const struct json *json, int *len, unsigned int indent)
    return NULL;
 
 }
+
 /*
-* Get value for key from json
+* @brief Get value for key from json
 * List and json object value is not returned, instead iterator is returned 
+* @param json Json object
+* @param key Key to fetch
+* @param type type of value
+* @return value stored in json
 */
 const void* json_get(const struct json *json, const char *key, int *type)
 {
@@ -1420,10 +1578,15 @@ const void* json_get(const struct json *json, const char *key, int *type)
 }
 
 /*
-* Set Key in JSON object
+* @brief Set Key in JSON object
 * If Provided value is NULL key will be removed
 * For List the key will be added
 * For others values will be replcaed, if key exists or it will be added
+* @param json Json object
+* @param key Key for json
+* @param type Type of value
+* @param val Value that needs to be saved
+* @return JSON_ERR Value
 */
 int json_set(struct json *json, char *key, int type, void *val)
 {
@@ -1446,7 +1609,7 @@ int json_set(struct json *json, char *key, int type, void *val)
         }
 
         /* Make duplicate of key*/
-        if(key && ((key = json_clone_str(key, &err)) == NULL )){
+        if(val && key && ((key = json_clone_str(key, &err)) == NULL )){
             return err; 
         }
 
@@ -1533,8 +1696,12 @@ int json_set(struct json *json, char *key, int type, void *val)
 
     return err;
 }
+
 /*
-* Iterator
+* @brief Next item for iterator
+* @param iter Json Iterator
+* @param type Type for current value
+* @return Current value referenced by iterator
 */
 const void* json_iter_next(struct json_iter *iter,  int *type)
 {
@@ -1597,23 +1764,50 @@ const void* json_iter_next(struct json_iter *iter,  int *type)
     return NULL;
 }
 
+/*
+* @brief Get a new empty json object
+* @return json object
+*/
 struct json* json_new(void)
 {
     return json_alloc_obj();
 }
 
+/*
+* @brief Delete json object and free all data
+* @param json Json data
+*/
 void json_del(struct json* json)
 {
     json_free(json);
 }
 
+/*
+* @brief Get iterator for json keys
+* @param json Json object
+* @return Iterator for json  keys
+*/
 struct json_iter *json_keys(const struct json* json)
 {
     return json_get_iter(JSON_TYPE_OBJ, json);
 }
 
+/*
+* @brief Clone json object
+* @param json Json object
+* @return Json object
+*/
 struct json* json_clone(struct json* json)
 {
     int err;
     return json_clone_obj(json, &err);
+}
+
+/*
+* @brief Delete Json Iterator
+* @param iter Json Iterator
+*/
+void json_iter_del(struct json_iter *iter)
+{
+    json_free_iter(iter);
 }

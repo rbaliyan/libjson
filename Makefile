@@ -8,7 +8,6 @@ LIB_DIR ?= lib
 BIN_DIR ?= bin
 INC_DIR ?= inc
 TEST_DIR ?= test
-CONFIG_DIR ?= config
 
 # Execuatbles
 CC := gcc
@@ -19,12 +18,8 @@ RM := rm -rf
 # Supported Extension
 C_EXT := c
 H_EXT := h
-CPP_EXT := cpp
-ASM_EXT := s
 OBJ_EXT := o
 LIB_EXT := a
-BIN_EXT := bin
-ELF_EXT := elf
 LIB_PREFIX := lib
 DEPEND_EXT := d
 TEST_EXEC := test
@@ -78,8 +73,18 @@ endif
 OS := $(shell uname)
 
 ifeq ($(OS),Darwin)
-GLOBAL_CFLAG += '-DFUNOPEN_SUPPORT'
+	GLOBAL_CFLAG += '-DFUNOPEN_SUPPORT' -DDARWIN_SYS
+else
+	ifeq ($(OS),Linux)
+		GLOBAL_CFLAG += '-DFMEMOPEN_SUPPORT'
+	endif
 endif
+
+# If Verbose mode is not requsted then silent output
+ifeq (,$(V))
+.SILENT:
+endif
+
 
 ###########################################
 # Flags
@@ -117,6 +122,10 @@ lib    :  $(TARGET)
 test_run: CFLAGS += $(DEBUG)
 test: CFLAGS += $(DEBUG)
 test : $(BIN_DIR)/$(TEST_EXEC)
+
+# Include Depend Files
+-include $(DEPEND_FILES)
+
 test_run: test
 	@echo "Runing tests"
 	$(BIN_DIR)/$(TEST_EXEC)
@@ -164,5 +173,6 @@ tags: cscope $(C_FILES) $(CPP_FILES) $(ASM_FILES)
 # cscope tags
 cscope : $(C_FILES) $(CPP_FILES) $(ASM_FILES)
 	@$(CSCOPE) $(CSCOPE_FLAGS)
+
 
 .PHONY: clean install connect tags cscope

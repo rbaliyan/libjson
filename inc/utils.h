@@ -8,7 +8,6 @@
 extern "C" {
 #endif
 
-
 FILE *fmemopen(void *buf, size_t size, const char *mode);
 char* readall(const char *fname, unsigned int *len);
 const char* trim(const char *start, const char *end);

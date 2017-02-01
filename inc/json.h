@@ -53,7 +53,8 @@ int json_printf(const struct json *json, const char *fname, unsigned int indent)
 int json_prints(const struct json *json, char *buffer, unsigned int size, unsigned int indent);
 const char* json_str(const struct json *json, int *len, unsigned int indent);
 struct json_iter *json_keys(const struct json* json);
-struct json* json_clone(struct json* json);
+struct json* json_clone(struct json* json);\
+void json_iter_del(struct json_iter *iter);
 #ifdef __cplusplus
 }
 #endif

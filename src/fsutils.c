@@ -9,18 +9,39 @@
 #include <sys/mman.h>
 #include "fsutils.h"
 
-#ifndef FMEM_OPEN_SUPPORT
 #define BUFFER_SIZE 1024
 #define BUFFER_SIZE_EXTRA 512
 
-/*
-* fmem structure to hold the buffer and pointer for the in memeory stream
-*/
+
 #define FMEM_DYNAMIC_MEM 0x01
 #define FMEM_RONLY 0x02
 #define FMEM_WONLY 0x04
 #define FMEM_RW 0x04
 
+#ifndef FUNOPEN_SUPPORT
+typedef ssize_t (write_t)(void *cookie, const char *buf, size_t size);
+typedef ssize_t (read_t)(void *cookie, char *buf, size_t size);
+typedef off_t (seek_t)(void *cookie, off_t offset, int whence);
+typedef int (close_t)(void *cookie);
+typedef struct _io
+{
+    read_t  *read;
+    write_t *write;
+    seek_t  *seek;
+    close_t *close;
+} io_functions_t;
+
+FILE* fopencookie(void* cookie, const char* mode, io_functions_t io);
+#endif
+
+#ifndef FUNOPEN_SUPPORT
+FILE *funopen(void *cookie, read_t *readfn, write_t *writefn, 
+              seek_t *seekfn, close_t *closefn);
+#endif
+
+/*
+* fmem structure to hold the buffer and pointer for the in memeory stream
+*/
 struct fmem {
     size_t pos;
     size_t size;
@@ -28,11 +49,14 @@ struct fmem {
     int dynamic;
 };
 
-
 /*
-* Read function for the in memeory stream
+* @brief Read function for the in memeory stream
+* @param handler Handler for memory buffer
+* @param buf Buffer to read data to
+* @param size Size of buffer
+* @return length of data read
 */
-static int read_buffer(void *handler, char *buf, int size)
+static ssize_t read_buffer(void *handler, char *buf, size_t size)
 {
     struct fmem *mem = handler;
     size_t available = mem->size - mem->pos;
@@ -50,9 +74,13 @@ static int read_buffer(void *handler, char *buf, int size)
 }
 
 /*
-* Write function for the in memeory stream
+* @brief write function for the in memeory stream
+* @param handler Handler for memory buffer
+* @param buf Buffer to write data to
+* @param size Size of buffer
+* @return length of data written
 */
-static int write_buffer(void *handler, const char *buf, int size)
+static ssize_t write_buffer(void *handler, const char *buf, size_t size)
 {
     struct fmem *mem = handler;
     char *buffer = NULL;
@@ -75,7 +103,11 @@ static int write_buffer(void *handler, const char *buf, int size)
 }
 
 /*
-* Seek function for the in memeory stream
+* @brief Seek function for the in memeory stream
+* @param handler Handler for memory buffer
+* @param offset Offset to seek to
+* @param whence Offset start
+* @return offset from start
 */
 static off_t seek_buffer(void *handler, off_t offset, int whence)
 {
@@ -100,7 +132,7 @@ static off_t seek_buffer(void *handler, off_t offset, int whence)
             }
             break;
         
-        case SEEK_END: 
+        case SEEK_END:
             pos = mem->size + (size_t)offset;
             break;
         default: 
@@ -118,7 +150,9 @@ static off_t seek_buffer(void *handler, off_t offset, int whence)
 }
 
 /*
-* Close function
+* @brief Close function
+* @param handle Hanlder for memory stream
+* @return 0
 */
 static int close_buffer(void *handler)
 {
@@ -127,13 +161,19 @@ static int close_buffer(void *handler)
 }
 
 #ifndef FUNOPEN_SUPPORT
-FILE *funopen(void *cookie,
-                cookie_read_function_t *readfn,
-                cookie_write_function_t *writefn,
-                cookie_seek_function_t *seekfn,
-                cookie_close_function_t *closefn)
+/*
+* @brief
+* @param cookie memeory stream handler
+* @param readfn Read function
+* @param writefn write function
+* @param seekfn seek function
+* @param readfn closefn function
+* @return File pointer
+*/
+FILE *funopen(void *cookie, read_t *readfn, write_t *writefn, 
+              seek_t *seekfn, close_t *closefn)
 {
-  cookie_io_functions_t io = { NULL };
+  io_functions_t io = { NULL };
   io.read = readfn;
   io.write = writefn;
   io.seek = seekfn;
@@ -144,15 +184,20 @@ FILE *funopen(void *cookie,
   } else if(readfn){
       mode = "r";
   } else {
-      mode = "w"
+      mode = "w";
   }
 
   return fopencookie (cookie, mode, io);
 }
 #endif
+
+#ifndef FMEMOPEN_SUPPORT
 /*
-* fmemopen
-* Simulate stream io on memory buffer
+* @brief Simulate stream io on memory buffer
+* @param buf Buffer for stream
+* @param size Size of buffer
+* @param mode IO Mode["r", "w", "rw"]
+* @return File pointer
 */
 FILE *fmemopen(void *buf, size_t size, const char *mode)
 {
@@ -170,7 +215,13 @@ FILE *fmemopen(void *buf, size_t size, const char *mode)
 
     return funopen(mem, read_buffer, write_buffer, seek_buffer, close_buffer);
 }
-
+#endif
+/*
+* @brief Simulate stream io on dynamically growing memory buffer
+* @param buf where pointer to allocated buffer will be stored
+* @param size Size of buffer
+* @return File pointer
+*/
 FILE *fdmemopen(char ***buffer, size_t **size)
 {
     if(!buffer){
@@ -192,6 +243,7 @@ FILE *fdmemopen(char ***buffer, size_t **size)
         *buffer = &mem->buffer; 
     } else {
         fprintf(stderr, "Memory allocation failed\n");
+        free(mem);
         return NULL;
     }
 
@@ -200,10 +252,11 @@ FILE *fdmemopen(char ***buffer, size_t **size)
     return funopen(mem, read_buffer, write_buffer, seek_buffer, close_buffer);
 }
 
-#endif
-
 /*
-* Open a file in read mode and read all data in buffer
+* @brief Open a file in read mode and read all data in buffer
+* @param fname filename 
+* @param len Pointer where length of read data will be saved
+* @return Buffer where data is read
 */
 char* readall(const char *fname, unsigned int *len)
 {
@@ -269,3 +322,4 @@ char* readall(const char *fname, unsigned int *len)
     }
     return NULL;
 }
+

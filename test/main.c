@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include "json.h"
 
 
@@ -8,7 +9,7 @@ int main(int argc, char *argv[])
     int type = 0;
     const void *data = NULL;
     char buffer[1024] = {0};
-    char *buff_new = NULL;
+    const char *buff_new = NULL;
     struct json *json = NULL;
     json = json_load("test.json", NULL);
     struct json *json_1 = NULL;
@@ -23,21 +24,23 @@ int main(int argc, char *argv[])
     json_del(json_1);
     json_del(json_2);
     if(json){
-        //len = json_prints(json, buffer, sizeof(buffer), 2);
-        //printf("\n%s\n", buffer);
-        //json_set(json, "json", 0, NULL);
-        //json_print(json, 2);
-        //buff_new = json_str(json, &len, 0);
-        //printf("\n%s\n", buff_new);
-        //free(buff_new);
+        len = json_prints(json, buffer, sizeof(buffer), 2);
+        printf("\n%s\n", buffer);
+        json_set(json, "json", 0, NULL);
         json_print(json, 2);
-
+        buff_new = json_str(json, &len, 0);
+        if(buff_new){
+            printf("\n%s\n", buff_new);
+            free((void*)buff_new);
+        }
+        json_print(json, 2);  
         struct json_iter *iter = json_keys(json);
         while((data = json_iter_next(iter, &type))){
             printf("%s, %d\n", (char*)data, type);
         }
-
         json_del(json);
+        json_iter_del(iter);
     }
 }
+
 

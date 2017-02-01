@@ -4,6 +4,9 @@
 #include <errno.h>
 #include <stdio.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define TRACE_LEVEL_NONE 0
 #define TRACE_LEVEL_ERROR 1
@@ -135,8 +138,11 @@
 #endif
   
 
-void hexdump(int level, char * str, unsigned int* data, int len);
+int hexdump(int level, char * str, unsigned int* data, size_t size);
 int set_trace_level( int level );
 int dump_log(int level, const char *format, ...);
-
+int set_trace_file(const char *fname);
+#ifdef __cplusplus
+}
+#endif
 #endif
