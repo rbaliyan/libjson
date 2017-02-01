@@ -16,6 +16,11 @@
 /*
 * fmem structure to hold the buffer and pointer for the in memeory stream
 */
+#define FMEM_DYNAMIC_MEM 0x01
+#define FMEM_RONLY 0x02
+#define FMEM_WONLY 0x04
+#define FMEM_RW 0x04
+
 struct fmem {
     size_t pos;
     size_t size;
@@ -72,7 +77,7 @@ static int write_buffer(void *handler, const char *buf, int size)
 /*
 * Seek function for the in memeory stream
 */
-static fpos_t seek_buffer(void *handler, fpos_t offset, int whence)
+static off_t seek_buffer(void *handler, off_t offset, int whence)
 {
     size_t pos;
     struct fmem *mem = handler;
@@ -109,7 +114,7 @@ static fpos_t seek_buffer(void *handler, fpos_t offset, int whence)
 
     /* Set current pointer */
     mem->pos = pos;
-    return (fpos_t)pos;
+    return (off_t)pos;
 }
 
 /*
@@ -121,6 +126,30 @@ static int close_buffer(void *handler)
   return 0;
 }
 
+#ifndef FUNOPEN_SUPPORT
+FILE *funopen(void *cookie,
+                cookie_read_function_t *readfn,
+                cookie_write_function_t *writefn,
+                cookie_seek_function_t *seekfn,
+                cookie_close_function_t *closefn)
+{
+  cookie_io_functions_t io = { NULL };
+  io.read = readfn;
+  io.write = writefn;
+  io.seek = seekfn;
+  io.close = closefn;
+  const char* mode = NULL;
+  if(readfn && writefn){
+      mode = "rw";
+  } else if(readfn){
+      mode = "r";
+  } else {
+      mode = "w"
+  }
+
+  return fopencookie (cookie, mode, io);
+}
+#endif
 /*
 * fmemopen
 * Simulate stream io on memory buffer
@@ -139,22 +168,7 @@ FILE *fmemopen(void *buf, size_t size, const char *mode)
     mem->size = size;
     mem->buffer = buf;
 
-    if((strcmp(mode, "r") == 0)){
-        return fropen(mem, read_buffer);
-    } else if((strcmp(mode, "w") == 0)){
-        return fwopen(mem, write_buffer);
-    } else if((strcmp(mode, "a") == 0)){
-        return fwopen(mem, write_buffer);
-    } else if((strcmp(mode, "w+") == 0)||
-              (strcmp(mode, "r+") == 0)||
-              (strcmp(mode, "rw+") == 0)||
-              (strcmp(mode, "rw") == 0)){
-        return funopen(mem, read_buffer, write_buffer, seek_buffer, close_buffer);
-    } else {
-        fprintf(stderr, "Unkown mode :%s\n", mode);
-    }  
-
-    return NULL;
+    return funopen(mem, read_buffer, write_buffer, seek_buffer, close_buffer);
 }
 
 FILE *fdmemopen(char ***buffer, size_t **size)
@@ -183,7 +197,7 @@ FILE *fdmemopen(char ***buffer, size_t **size)
 
     mem->buffer = buf;
 
-    return fwopen(mem, write_buffer);
+    return funopen(mem, read_buffer, write_buffer, seek_buffer, close_buffer);
 }
 
 #endif

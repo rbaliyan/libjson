@@ -75,6 +75,12 @@ ifneq  ("$(BIN_DIR)","")
     $(shell mkdir -p $(BIN_DIR))
 endif
 
+OS := $(shell uname)
+
+ifeq ($(OS),Darwin)
+GLOBAL_CFLAG += '-DFUNOPEN_SUPPORT'
+endif
+
 ###########################################
 # Flags
 ############################################
@@ -83,9 +89,6 @@ OPTIMIZE := -O0
 
 # Debug Flag
 DEBUG := -g
-
-C_FLAG := $(shell curl-config --cflags)
-LIB_FLAG :=$(shell curl-config --libs)
 
 LIB_FLAG +=$(addprefix -L,$(LIB_DIRS))
 LIB_FLAG +=$(addprefix -l,$(LIBS))
@@ -100,8 +103,6 @@ CFLAGS += $(GLOBAL_CFLAG)
 
 # Target Binary
 TARGET ?= $(LIB_DIR)/$(LIB_PREFIX)$(LIB_NAME).$(LIB_EXT)
-
-TARGET_DEBUG ?= $(LIB_DIR)/$(LIB_PREFIX)$(LIB_NAME_DEBUG).$(LIB_EXT)
 
 ############################################
 # Targets
@@ -121,7 +122,7 @@ test_run: test
 	$(BIN_DIR)/$(TEST_EXEC)
 
 $(BIN_DIR)/$(TEST_EXEC): $(TEST_OBJFILES) $(LIB_DIR)/$(LIB_PREFIX)$(LIB_NAME).$(LIB_EXT)
-	$(CC) $(CFLAGS) $(LIB_FLAG) $(TEST_LIB_FLAGS) $< -o $@
+	$(CC) $(CFLAGS) $< $(LIB_FLAG) $(TEST_LIB_FLAGS) -o $@
 
 $(TEST_OBJFILES): $(OBJ_DIR)/%.$(OBJ_EXT): $(TEST_DIR)/%.$(C_EXT)
 	@$(CC) -E $(CFLAGS) $< > $(OBJ_DIR)/$*.E

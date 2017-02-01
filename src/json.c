@@ -5,6 +5,8 @@
 #include "json.h"
 #include "fsutils.h"
 #include "utils.h"
+#define MODULE "JSON"
+#include "trace.h"
 
 /*  Json Value */
 struct json_val
@@ -108,6 +110,8 @@ static struct json* json_alloc_obj()
         json->count = 0;
         json->dict_start = NULL;
         json->dict_end = NULL;
+    } else {
+        TRACE(ERROR, "Failed to allocate object");
     }
     return json;
 }
@@ -152,6 +156,8 @@ static struct json_val * json_alloc_val(int json_type, const void* data)
                 val->data = data;
         }
         val->next = val->prev = NULL;
+    } else {
+        TRACE(ERROR, "Failed to allocate value");
     }
     return val;
 }
@@ -166,6 +172,8 @@ static struct json_list * json_alloc_list()
         /* Set Params*/
         list->start = list->end = NULL;
         list->count = 0;
+    }else {
+        TRACE(ERROR, "Failed to allocate list");
     }
     return list;
 }
@@ -179,6 +187,8 @@ static struct json_dict * json_alloc_dict(const char* key, const struct json_val
         /* Set params*/
         dict->key = key;
         dict->val = (struct json_val *)val;
+    }else {
+        TRACE(ERROR, "Failed to allocate dict");
     }
     return dict;
 }
@@ -306,13 +316,13 @@ static int json_dict_add(struct json *json, const char *key, const struct json_v
         /* Travers dict */
         for(dict = json->dict_start; dict; dict = dict->next){
             if(strcmp(dict->key, key)== 0){
-                fprintf(stderr,"%s:%d>key %s can not come in same dict more than once\n", __func__, __LINE__,key);
+                fprintf(stderr, "Key %s repeated", key);
+                TRACE(WARN,"Key %s repeated", key);
                 return 0;
             }
         }
         /* Allocate dict */
-        dict = json_alloc_dict(key, val);
-        if( dict ){
+        if((dict = json_alloc_dict(key, val))){
             /* Add in the end */
             dict->prev = json->dict_end;
 
@@ -326,10 +336,10 @@ static int json_dict_add(struct json *json, const char *key, const struct json_v
             json->count++;
             err = 1;
         } else {
-             fprintf(stderr,"%s:%d> Failed to allocate dict\n", __func__, __LINE__);
+             TRACE(ERROR, "Dict Error");
         }
     } else {
-        fprintf(stderr,"%s:%d> Invalid args\n", __func__, __LINE__);
+       TRACE(WARN,"Arguments Error");
     }
     return err;
 }
@@ -350,6 +360,8 @@ static int json_list_add(struct json_list *list, struct json_val * val)
         list->end = val;
         list->count++;
         err = 1;
+    } else {
+       TRACE(WARN,"Arguments Error");
     }
     return err;
 }
@@ -369,7 +381,8 @@ static struct json_list * json_parse_list(const char *start, const char *end,con
 
         /* Check beginning */
         if(*start != '['){
-            fprintf(stderr, "%s:%d>List must begin with [\n", __func__, __LINE__);
+            fprintf(stderr, "List must begin with [\n");
+            TRACE(ERROR, "PARSE ERROR");
             *raw = begin;
             return NULL;
         }
@@ -377,7 +390,8 @@ static struct json_list * json_parse_list(const char *start, const char *end,con
         /* Trim Data */
         start = trim(start + 1, end);
         if(start == end){
-            fprintf(stderr, "%s:%d>Missing ]\n",__func__, __LINE__);
+            fprintf(stderr, "Missing ]\n");
+            TRACE(ERROR, "PARSE ERROR");
             *raw = begin;
             return NULL;
         }
@@ -385,7 +399,8 @@ static struct json_list * json_parse_list(const char *start, const char *end,con
         /* Allocate List */
         list = json_alloc_list();
         if(!list){
-            fprintf(stderr, "%s:%d>Failed to init List\n",__func__, __LINE__);
+            TRACE(ERROR, "PARSE ERROR");
+            fprintf(stderr, "Failed to init List\n");
             if(err)
                 *err = JSON_ERR_NO_MEM;
             *raw = begin;
@@ -407,7 +422,8 @@ static struct json_list * json_parse_list(const char *start, const char *end,con
 
             /* Check for failure */
             if(!val || (temp == start)){
-                fprintf(stderr, "%s:%d>Failed to parse value\n",__func__, __LINE__);
+                fprintf(stderr, "Failed to parse value\n");
+                TRACE(ERROR, "PARSE ERROR");
                 json_free_list(list);
                 *raw = begin;
                 if(err)
@@ -417,7 +433,8 @@ static struct json_list * json_parse_list(const char *start, const char *end,con
 
             /* Add Value in List */
             if(!json_list_add(list, val)){
-                fprintf(stderr, "%s:%d>Failed to add value in List\n",__func__, __LINE__);
+                fprintf(stderr, "Failed to add value in List\n");
+                TRACE(ERROR, "PARSE ERROR");
                 *raw = begin;
                 if(err)
                     *err = JSON_ERR_NO_MEM;
@@ -434,7 +451,8 @@ static struct json_list * json_parse_list(const char *start, const char *end,con
                     return list;
                 } else if(*start != ',') {
                     /* List Must have comma */
-                    fprintf(stderr, "%s:%dMissing ,",__func__, __LINE__);
+                    fprintf(stderr, "Missing ,");
+                    TRACE(ERROR, "PARSE ERROR");
                     *raw = begin;
                     json_free_list(list);
                     if(err)
@@ -489,7 +507,8 @@ static struct json_val * json_parse_val(const char *start, const char *end,const
 
                 /* Check for failure */
                 if((start == temp) ||(val == NULL)){
-                    fprintf(stderr, "%s:%dFailed to parse object\n",__func__, __LINE__);
+                    fprintf(stderr, "Failed to parse object\n");
+                    TRACE(ERROR, "PARSE ERROR");
                     start = begin;
                     return NULL;
                 }
@@ -505,7 +524,8 @@ static struct json_val * json_parse_val(const char *start, const char *end,const
 
                 /* Check for failure */
                 if((start == temp) ||(val == NULL)){
-                    fprintf(stderr, "%s:%d>Failed to parse object\n",__func__, __LINE__);
+                    fprintf(stderr, "Failed to parse object\n");
+                    TRACE(ERROR, "PARSE ERROR");
                     return NULL;
                 }
                 *raw = temp;
@@ -518,7 +538,8 @@ static struct json_val * json_parse_val(const char *start, const char *end,const
 
                 /* Check for failure */
                 if(start == temp){
-                    fprintf(stderr, "%s:%d>Failed to parse object\n",__func__, __LINE__);
+                    fprintf(stderr, "Failed to parse object\n");
+                    TRACE(ERROR, "PARSE ERROR");
                     return NULL;
                 }
                 *raw = temp;
@@ -533,7 +554,8 @@ static struct json_val * json_parse_val(const char *start, const char *end,const
 
                 /* Check for failure */
                 if((start == temp) || !val){
-                    fprintf(stderr, "%s:%d>Failed to parse object\n",__func__, __LINE__);
+                    fprintf(stderr, "Failed to parse object\n");
+                    TRACE(ERROR, "PARSE ERROR");
                     *err = JSON_ERR_PARSE;
                     return NULL;
                 }
@@ -542,7 +564,8 @@ static struct json_val * json_parse_val(const char *start, const char *end,const
             case 'n': case 'N':
                 json_type = JSON_TYPE_NULL;
                 if(((end - start) < 4) || ((strncasecmp(start, "null", 4)) != 0)){
-                    fprintf(stderr, "%s:%d>Failed to parse null\n",__func__, __LINE__);
+                    fprintf(stderr, "Failed to parse null\n");
+                    TRACE(ERROR, "PARSE ERROR");
                     *err = JSON_ERR_PARSE;
                     return NULL;
                 }
@@ -564,7 +587,8 @@ static struct json_val * json_parse_val(const char *start, const char *end,const
                 }
                 /* Check if we are at the end of data */
                 if(start >= end){
-                    fprintf(stderr, "%s:%d>Failed to parse number, only sign found\n",__func__, __LINE__);
+                    fprintf(stderr, "Failed to parse number, only sign found\n");
+                    TRACE(ERROR, "PARSE ERROR");
                     *err = JSON_ERR_PARSE;
                     return NULL;
                 }
@@ -574,7 +598,8 @@ static struct json_val * json_parse_val(const char *start, const char *end,const
                     /* Parse double value*/
                     double_val = get_fraction(start, end, &temp);
                     if(start == temp){
-                        fprintf(stderr, "%s:%d>Failed to parse double value\n",__func__, __LINE__);
+                        fprintf(stderr, "Failed to parse double value\n");
+                        TRACE(ERROR, "PARSE ERROR");
                         *err = JSON_ERR_PARSE;
                         return NULL;
                     }
@@ -588,11 +613,13 @@ static struct json_val * json_parse_val(const char *start, const char *end,const
                     /* Parse hex value */
                     uint_number = get_hex(start, end, &temp, &overflow);
                     if(start == temp){
-                        fprintf(stderr, "%s:%d>Failed to parse hex value\n",__func__, __LINE__);
+                        fprintf(stderr, "Failed to parse hex value\n");
+                        TRACE(ERROR, "PARSE ERROR");
                         *err = JSON_ERR_PARSE;
                         return NULL;
                     } else if(sign == -1 ){
-                        fprintf(stderr, "%s:%d>Hex value can not be negative\n",__func__, __LINE__);
+                        fprintf(stderr, "Hex value can not be negative\n");
+                        TRACE(ERROR, "PARSE ERROR");
                         *err = JSON_ERR_PARSE;
                         return NULL;
                     }
@@ -604,11 +631,13 @@ static struct json_val * json_parse_val(const char *start, const char *end,const
                     /* Parse octal values */
                     uint_number = get_octal(start, end, &temp, &overflow);
                     if(start == temp){
-                        fprintf(stderr, "%s:%d>Failed to parse octal value\n",__func__, __LINE__);
+                        fprintf(stderr, "Failed to parse octal value\n");
+                        TRACE(ERROR, "PARSE ERROR");
                         *err = JSON_ERR_PARSE;
                         return NULL;
                     } else if(sign == -1 ){
-                        fprintf(stderr, "%s:%d>Octal value can not be negative\n",__func__, __LINE__);
+                        fprintf(stderr, "Octal value can not be negative\n");
+                        TRACE(ERROR, "PARSE ERROR");
                         *err = JSON_ERR_PARSE;
                         return NULL;
                     }
@@ -618,7 +647,8 @@ static struct json_val * json_parse_val(const char *start, const char *end,const
                 } else {
                     long_val = get_integer(start, end, &temp, &overflow, &unsigned_flag);
                     if(start == temp){
-                        fprintf(stderr, "%s:%d>Failed to parse octal value\n",__func__, __LINE__);
+                        fprintf(stderr, "Failed to parse octal value\n");
+                        TRACE(ERROR, "PARSE ERROR");
                         *err = JSON_ERR_PARSE;
                         return NULL;
                     }
@@ -636,7 +666,8 @@ static struct json_val * json_parse_val(const char *start, const char *end,const
                         start++;
                         double_val = get_fraction(start, end, &temp);
                         if(start == temp){
-                            fprintf(stderr, "%s:%d>Failed to parse decimal value\n",__func__, __LINE__);
+                            fprintf(stderr, "Failed to parse decimal value\n");
+                            TRACE(ERROR, "PARSE ERROR");
                             *err = JSON_ERR_PARSE;
                             return NULL;
                         }
@@ -666,7 +697,7 @@ static struct json_val * json_parse_val(const char *start, const char *end,const
 
     /* Allocate json vlue*/
     if((j_val = json_alloc_val(json_type, val)) == NULL ){
-        fprintf(stderr, "%s:%d> Failed to alocate memeory", __func__, __LINE__);
+        fprintf(stderr, " Failed to alocate memeory");
         *err = JSON_ERR_NO_MEM;
         *raw = begin;
     }
@@ -702,14 +733,16 @@ static struct json * json_parse_obj(const char *start, const  char *end, const  
                 list = json_parse_list(start, end, &temp, err);
                 start = trim(temp, end);
                 if(start < end){
-                    fprintf(stderr, "%s:%d> Invalid json data\n", __func__, __LINE__);
+                    fprintf(stderr, "Invalid json data\n");
+                    TRACE(ERROR, "PARSE ERROR");
                     json_free_list(list);
                     list = NULL;
                     return NULL;
                 } else {
                     /* Alocate JSON object */
                     if(!(json=json_alloc_obj())){
-                        fprintf(stderr, "%s:%d>Failed to allocate json object\n", __func__, __LINE__);
+                        TRACE(ERROR, "PARSE ERROR");
+                        fprintf(stderr, "Failed to allocate json object\n");
                         if(err)
                             *err = JSON_ERR_NO_MEM;
                         *raw = begin;
@@ -723,7 +756,8 @@ static struct json * json_parse_obj(const char *start, const  char *end, const  
             }
 
             if(list == NULL){
-                fprintf(stderr, "%s:%d>Missing {",__func__, __LINE__);
+                TRACE(ERROR, "PARSE ERROR");
+                fprintf(stderr, "Missing {");
                 if(err)
                     *err = JSON_ERR_PARSE;
                 *raw = begin;
@@ -735,7 +769,8 @@ static struct json * json_parse_obj(const char *start, const  char *end, const  
 
         /* Check if we are at the end */
         if(start >= end){
-            fprintf(stderr, "%s:%d>Missing }\n",__func__, __LINE__);
+            TRACE(ERROR, "PARSE ERROR");
+            fprintf(stderr, "Missing }\n");
             if(err)
                 *err = JSON_ERR_PARSE;
             *raw = begin;
@@ -744,7 +779,8 @@ static struct json * json_parse_obj(const char *start, const  char *end, const  
 
         /* Alocate JSON object */
         if(!(json=json_alloc_obj())){
-            fprintf(stderr, "%s:%d>Failed to allocate json object\n", __func__, __LINE__);
+            TRACE(ERROR, "PARSE ERROR");
+            fprintf(stderr, "Failed to allocate json object\n");
             if(err)
                 *err = JSON_ERR_NO_MEM;
             *raw = begin;
@@ -753,7 +789,6 @@ static struct json * json_parse_obj(const char *start, const  char *end, const  
 
         if(*start == '}'){
             temp = trim(start + 1, end);
-            
             if(err)
                 *err = JSON_ERR_SUCCESS;
             *raw = temp;
@@ -766,7 +801,8 @@ static struct json * json_parse_obj(const char *start, const  char *end, const  
             /* Rest Should bey Key:Val pair */
             key = get_string(start, end, &temp, &len);
             if(!key || (temp == start)){
-                fprintf(stderr, "%s:%d>Missing Key, should start with \"\n",__func__, __LINE__);
+                fprintf(stderr, "Missing Key, should start with \"\n");
+                TRACE(ERROR, "PARSE ERROR");
                 json_free(json);
                 if(err)
                     *err = JSON_ERR_PARSE;
@@ -776,7 +812,8 @@ static struct json * json_parse_obj(const char *start, const  char *end, const  
             /* Trim whitespace */
             start = trim(temp, end);
             if(( start == end ) || *start != ':'){
-                fprintf(stderr, "%s:%d>Missing :\n",__func__, __LINE__);
+                fprintf(stderr, "Missing :\n");
+                TRACE(ERROR, "PARSE ERROR");
                 json_free(json);
                 if(err)
                     *err = JSON_ERR_PARSE;
@@ -786,7 +823,8 @@ static struct json * json_parse_obj(const char *start, const  char *end, const  
             /* Trim white space after collon */
             start = trim(start + 1, end);
             if( start >= end ){
-                fprintf(stderr, "%s:%d>Missing Value after :\n", __func__, __LINE__);
+                fprintf(stderr, "Missing Value after :\n");
+                TRACE(ERROR, "PARSE ERROR");
                 json_free(json);
                 if(err)
                     *err = JSON_ERR_PARSE;
@@ -798,7 +836,8 @@ static struct json * json_parse_obj(const char *start, const  char *end, const  
 
             /* Check for success */
             if(!val || (start == temp)){
-                fprintf(stderr, "%s:%d>Failed to parse value for %s\n", __func__, __LINE__, key);
+                fprintf(stderr, "Failed to parse value for %s\n", key);
+                TRACE(ERROR, "PARSE ERROR");
                 json_free(json);
                 if(err)
                     *err = JSON_ERR_PARSE;
@@ -807,7 +846,7 @@ static struct json * json_parse_obj(const char *start, const  char *end, const  
 
             /* Add Key value pair in json object */
             if(!json_dict_add(json, key, val)){
-                fprintf(stderr, "%s:%d>Failed to add value for %s in json object\n", __func__, __LINE__, key);
+                fprintf(stderr, "Failed to add value for %s in json object\n", key);
                 json_free(json);
                 if(err)
                     *err = JSON_ERR_NO_MEM;
@@ -817,7 +856,8 @@ static struct json * json_parse_obj(const char *start, const  char *end, const  
             /* Trim */
             start = trim(temp, end);
             if(start == end ){
-                fprintf(stderr, "%s:%d>Missing }\n", __func__, __LINE__);
+                fprintf(stderr, "Missing }\n");
+                TRACE(ERROR, "PARSE ERROR");
                 json_free(json);
                 if(err)
                     *err = JSON_ERR_NO_MEM;
@@ -840,7 +880,7 @@ static struct json * json_parse_obj(const char *start, const  char *end, const  
                     return json;
 
                 default:
-                    fprintf(stderr, "%s:%d>Missing ,\n", __func__, __LINE__);
+                    fprintf(stderr, "Missing ,\n");
                     *raw = begin;
                      json_free(json);
                     if(err)
@@ -870,11 +910,13 @@ static struct json * json_parse(const char *start, const char *end, int *err)
         if(json && temp){
             start = trim(temp, end);
             if(start < end){
-                fprintf(stderr, "%s:%d>Invalid characters after json object", __func__, __LINE__);
+                fprintf(stderr, "Invalid characters after json object");
+                TRACE(ERROR, "PARSE ERROR");
             }
         }
     } else {
-        fprintf(stderr, "%sInvalid params", __func__);
+        TRACE(ERROR, "Invalid Params");
+        fprintf(stderr, "Invalid params");
         if(err)
             *err = JSON_ERR_ARGS;
     }
@@ -1046,12 +1088,12 @@ static char* json_clone_str(const char* src_str, int *err)
         if((str = buffer_alloc(len))){
             strcpy(str, src_str);
         } else {
-            fprintf(stderr, "%s:%d>Memory allocation failure\n", __func__, __LINE__);
+            fprintf(stderr, "Memory allocation failure\n");
             if(err)
                 *err = JSON_ERR_NO_MEM;
         }
     } else {
-        fprintf(stderr, "%s:%d> Null String\n", __func__, __LINE__);
+        fprintf(stderr, " Null String\n");
         if(err)
             *err = JSON_ERR_ARGS;
     }
@@ -1076,13 +1118,13 @@ struct json_val* json_clone_val(const struct json_val* src_val, int *err)
                 if(err) 
                     *err = JSON_ERR_SUCCESS;
             } else {
-                fprintf(stderr, "%s:%d>Failed to allocate json val\n", __func__, __LINE__);
+                fprintf(stderr, "Failed to allocate json val\n");
                 if(err)
                     *err = JSON_ERR_NO_MEM;
                 json_free_type(src_val->type, data);
             }
         } else {
-            fprintf(stderr, "%s:%d>Failed to allocate data\n", __func__, __LINE__);
+            fprintf(stderr, "Failed to allocate data\n");
             if(err)
                 *err = JSON_ERR_NO_MEM;
         }
@@ -1102,7 +1144,7 @@ static struct json_list* json_clone_list(const struct json_list *src_list, int *
             for(src_val = src_list->start; src_val; src_val = src_val->next){
                 if((val = json_clone_val(src_val, err))){
                     if(!json_list_add(list, val)){
-                        fprintf(stderr, "%s:%d>Failed to add in list\n", __func__, __LINE__);
+                        fprintf(stderr, "Failed to add in list\n");
                         json_free_list(list);
                         list = NULL;
                         if(err)
@@ -1115,7 +1157,7 @@ static struct json_list* json_clone_list(const struct json_list *src_list, int *
                 }
             }
         } else {
-            fprintf(stderr, "%s:%d>Memory allocation failure\n", __func__, __LINE__);
+            fprintf(stderr, "Memory allocation failure\n");
             if(err)
                 *err = JSON_ERR_NO_MEM;
         }
@@ -1139,7 +1181,7 @@ static struct json* json_clone_obj(const struct json* src_json, int *err)
                     if(err)
                         *err = JSON_ERR_SUCCESS;
                 } else {
-                    fprintf(stderr, "%s:%d>Failed to clone list\n", __func__, __LINE__);
+                    fprintf(stderr, "Failed to clone list\n");
                     json_free(json);
                 }
             } else {
@@ -1150,7 +1192,7 @@ static struct json* json_clone_obj(const struct json* src_json, int *err)
                                 if(err)
                                     *err = JSON_ERR_SUCCESS;
                             } else {
-                                fprintf(stderr, "%s:%d>Failed to allocate dict\n", __func__, __LINE__);
+                                fprintf(stderr, "Failed to allocate dict\n");
                                 if(err)
                                     *err = JSON_ERR_NO_MEM;
                                 json_free_val(val);
@@ -1159,20 +1201,20 @@ static struct json* json_clone_obj(const struct json* src_json, int *err)
                                 json = NULL;
                             }
                         } else {
-                            fprintf(stderr, "%s:%d>Failed to allocate json val\n", __func__, __LINE__);
+                            fprintf(stderr, "Failed to allocate json val\n");
                             buffer_free(key);
                             json_free(json);
                             json = NULL;
                         }
                     } else {
-                        fprintf(stderr, "%s:%d>Failed to duplicate key\n", __func__, __LINE__);
+                        fprintf(stderr, "Failed to duplicate key\n");
                         json_free(json);
                         json = NULL;
                     }
                 }
             }
         } else {
-            fprintf(stderr, "%s:%d>Memory allocation failure\n", __func__, __LINE__);
+            fprintf(stderr, "Memory allocation failure\n");
             if(err)
                 *err = JSON_ERR_NO_MEM;
         }
@@ -1217,7 +1259,7 @@ struct json* json_loads(const char *start, const char* end, int *err)
         json = json_parse(start, end, err);
     } else {
         /* Invalid input */
-        fprintf(stderr, "%s:%d>Invalid params\n",__func__, __LINE__);
+        fprintf(stderr, "Invalid params\n");
         if(err) *err = JSON_ERR_ARGS;
     }
 
@@ -1248,7 +1290,7 @@ struct json* json_load(const char* fname, int *err)
             free(buffer); 
         } else {
             /* Failed to read file in buffer*/
-            fprintf(stderr, "%s:%d>Failed to read file : %s\n", __func__, __LINE__, fname);
+            fprintf(stderr, "Failed to read file : %s\n", fname);
 
             if(err)
                 *err = JSON_ERR_SYS;
@@ -1256,7 +1298,7 @@ struct json* json_load(const char* fname, int *err)
         }
     } else {
         /* Invalid arguments*/
-        fprintf(stderr, "%s:%d>Invalid args", __func__, __LINE__);
+        fprintf(stderr, "Invalid args");
         if(err)
             *err = JSON_ERR_ARGS;
     }
@@ -1291,7 +1333,7 @@ int json_printf(const struct json *json, const char *fname, unsigned int indent)
         fclose(fp);
         return len;
     } else {
-        fprintf(stderr, "%s:%d>Failed to open file : %s", __func__, __LINE__, fname);
+        fprintf(stderr, "Failed to open file : %s", fname);
     }
    return -1;
 }
@@ -1313,7 +1355,7 @@ int json_prints(const struct json *json, char *buffer, unsigned int size, unsign
          fclose(fp);
          return len;
     } else {
-        fprintf(stderr, "%s:%d>Failed to initialized buffer as file", __func__, __LINE__);
+        fprintf(stderr, "Failed to initialized buffer as file");
     }
    return -1;
 }
@@ -1339,7 +1381,7 @@ const char* json_str(const struct json *json, int *len, unsigned int indent)
          buffer[print_length] = 0;
          return buffer;
     } else {
-        fprintf(stderr, "%s:%d>Failed to initialize buffer as file", __func__, __LINE__);
+        fprintf(stderr, "Failed to initialize buffer as file");
     }
    return NULL;
 
@@ -1394,11 +1436,11 @@ int json_set(struct json *json, char *key, int type, void *val)
     if(json && (type <= JSON_TYPE_LIST)){
         /**Validate*/
         if(json->list && key){
-            fprintf(stderr, "%s:%d> Invalid operation on list object, key should be null\n", __func__, __LINE__);
+            fprintf(stderr, " Invalid operation on list object, key should be null\n");
             err = JSON_ERR_ARGS;
             return err; 
         } else if(!json->list && !key){
-            fprintf(stderr, "%s:%d> Key is neede for json object\n", __func__, __LINE__);
+            fprintf(stderr, " Key is neede for json object\n");
             err = JSON_ERR_ARGS;
             return err; 
         }
@@ -1416,7 +1458,7 @@ int json_set(struct json *json, char *key, int type, void *val)
          /* Allocate json value */
         if(val && (json_val = json_alloc_val(type, val)) == NULL ){
             /* Memeory allocation failed*/
-            fprintf(stderr, "%s:%d> Memeory allocation failed\n", __func__, __LINE__);
+            fprintf(stderr, " Memeory allocation failed\n");
             json_free_type(JSON_TYPE_STR, key);
             json_free_type(type, val);
             err = JSON_ERR_NO_MEM;
@@ -1426,7 +1468,7 @@ int json_set(struct json *json, char *key, int type, void *val)
         /* For List value is added*/
         if(json->list){
             if(json_list_add(json->list, json_val)){
-                fprintf(stderr, "%s:%d> Failed to add in list \n", __func__, __LINE__);
+                fprintf(stderr, " Failed to add in list \n");
                 json_free_type(JSON_TYPE_STR, key);
                 json_free_val(json_val);
                 err = JSON_ERR_NO_MEM;
@@ -1450,7 +1492,7 @@ int json_set(struct json *json, char *key, int type, void *val)
                     } else {
                         /* If not List then replace the value*/
                         if(!json_list_add(dict->val->list, json_val)){
-                            fprintf(stderr, "%s:%d> Failed to add in list \n", __func__, __LINE__);
+                            fprintf(stderr, " Failed to add in list \n");
                             json_free_val(json_val);
                             json_free_type(JSON_TYPE_STR, key);
                             err = JSON_ERR_NO_MEM;
@@ -1479,7 +1521,7 @@ int json_set(struct json *json, char *key, int type, void *val)
         if((dict == NULL) &&  val){
             /* No match found */
             if(!json_dict_add(json, key, json_val)){
-                fprintf(stderr, "%s:%d> Memeory allocation failed\n", __func__, __LINE__);
+                fprintf(stderr, " Memeory allocation failed\n");
                 err = JSON_ERR_NO_MEM;
                 json_free_val(json_val);
                 json_free_type(JSON_TYPE_STR, key);
