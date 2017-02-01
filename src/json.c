@@ -499,7 +499,15 @@ static struct json_val * json_parse_val(const char *start, const char *end,const
                 }
                 *raw = temp;
                 break;
-
+            case 'n': case 'N':
+                json_type = JSON_TYPE_NULL;
+                if(((end - start) < 4) || ((strncasecmp(start, "null", 4)) != 0)){
+                    fprintf(stderr, "%s:%d>Failed to parse null\n",__func__, __LINE__);
+                    *err = JSON_ERR_PARSE;
+                    return NULL;
+                }
+                *raw = start + 4;
+            break;
             case '0': case '1': case '2': case '3': case '4':
             case '5': case '6': case '7': case '8': case '9':
             case '.': case '+':case '-':
@@ -860,6 +868,7 @@ static int json_print_val(FILE *stream, struct json_val  *val, unsigned int inde
     int count = 0;
     switch(val->type){
         case JSON_TYPE_NULL:
+        ret = fprintf(stream, "null");
         break;
         case JSON_TYPE_OBJ:
             ret = json_print_obj(stream, val->json_obj, indent, level + 1);
