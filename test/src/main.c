@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include "json.h"
 
+#define TEST_JSON "data/test.json"
 
 int main(int argc, char *argv[])
 {
@@ -11,7 +12,7 @@ int main(int argc, char *argv[])
     char buffer[1024] = {0};
     const char *buff_new = NULL;
     struct json *json = NULL;
-    json = json_load("test.json", NULL);
+    json = json_load(TEST_JSON, NULL);
     struct json *json_1 = NULL;
     struct json *json_2 = NULL;
     long n = 1234;

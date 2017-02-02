@@ -18,6 +18,7 @@
 #define FMEM_WONLY 0x04
 #define FMEM_RW 0x04
 
+
 #ifndef FUNOPEN_SUPPORT
 typedef ssize_t (write_t)(void *cookie, const char *buf, size_t size);
 typedef ssize_t (read_t)(void *cookie, char *buf, size_t size);
@@ -56,7 +57,11 @@ struct fmem {
 * @param size Size of buffer
 * @return length of data read
 */
+#ifndef FUNOPEN_SUPPORT
 static ssize_t read_buffer(void *handler, char *buf, size_t size)
+#else
+static int read_buffer(void *handler, char *buf, int size)
+#endif
 {
     struct fmem *mem = handler;
     size_t available = mem->size - mem->pos;
@@ -80,7 +85,11 @@ static ssize_t read_buffer(void *handler, char *buf, size_t size)
 * @param size Size of buffer
 * @return length of data written
 */
-static ssize_t write_buffer(void *handler, const char *buf, size_t size)
+#ifndef FUNOPEN_SUPPORT
+static ssize_t write_buffer(void *handler, char *buf, size_t size)
+#else
+static int write_buffer(void *handler, const char *buf, int size)
+#endif
 {
     struct fmem *mem = handler;
     char *buffer = NULL;
@@ -260,7 +269,6 @@ FILE *fdmemopen(char ***buffer, size_t **size)
 */
 char* readall(const char *fname, unsigned int *len)
 {
-    int ret = -1;
     int fd, rlen;
     char *buffer;
     off_t size = 0;

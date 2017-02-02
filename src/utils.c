@@ -288,7 +288,6 @@ double get_fraction(const char *start, const char *end, const  char **raw)
 */
 bool get_boolean(const char *start, const char *end,const  char** raw)
 {
-    const char *begin = start;
     int len = end - start;
     int tlen = 4;
     int flen = 5;

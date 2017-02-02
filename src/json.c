@@ -349,7 +349,6 @@ static int json_dict_add(struct json *json, const char *key, const struct json_v
 {
     int err = 0;
     struct json_dict* dict = NULL;
-    struct json_val  *temp;
     /* Check data */
     if( json && key && val ){
         /* Travers dict */
@@ -1023,7 +1022,6 @@ static int json_print_list(FILE *stream, const struct json_list *list, unsigned 
 static int json_print_val(FILE *stream, const struct json_val  *val, unsigned int indent, unsigned int level)
 {
     int ret = 0;
-    int count = 0;
     switch(val->type){
         case JSON_TYPE_NULL:
         ret = fprintf(stream, "null");
@@ -1075,15 +1073,12 @@ static int json_print_val(FILE *stream, const struct json_val  *val, unsigned in
 */
 static int json_indent(FILE *stream, int indent, int level)
 {
-    int i;
     int indentation;
     if((level <= 0) ||( indent <= 0))
         return 0;
 
     indentation = indent * level;
     fprintf(stream, "%*c",indentation, ' ');
-    //for(i = 0; i < indentation; i++)
-    //    fprintf(stream, " ");
     return indentation;
 }
 
@@ -1097,16 +1092,13 @@ static int json_indent(FILE *stream, int indent, int level)
 */
 static int json_print_obj(FILE *stream, const struct json *json, unsigned int indent, unsigned int level)
 {
-    int i = 0;
     int ret = 0;
     int count = 0;
-    struct json_val  *val = NULL;
     struct json_dict *dict = NULL;
     
     /* Check data */
     if(json){
-        fprintf(stream, "{");
-        ret++;
+        ret +=fprintf(stream, "{");
         /* Traverse all dict keys */
         for(dict = json->dict_start; dict; dict = dict->next){
             if(count > 0){
@@ -1401,7 +1393,6 @@ struct json* json_loads(const char *start, const char* end, int *err)
 struct json* json_load(const char* fname, int *err)
 {
     struct json* json = NULL;
-    const char* temp = NULL;
     unsigned int len = 0;
     char *buffer = NULL;
 
@@ -1593,7 +1584,6 @@ int json_set(struct json *json, char *key, int type, void *val)
     int err = JSON_ERR_ARGS;
     struct json_dict *dict = NULL;
     struct json_val  *json_val = NULL;
-    struct json_list  *json_list = NULL;
 
     /* Check data */
     if(json && (type <= JSON_TYPE_LIST)){
