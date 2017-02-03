@@ -9,13 +9,16 @@ extern "C" {
 
 enum json_err
 {
-    JSON_ERR_SUCCESS, 
+    JSON_ERR_BEGIN = 0,
+    JSON_ERR_SUCCESS = 0, 
     JSON_ERR_NO_MEM,
+    JSON_ERR_KEY_REPEAT,
     JSON_ERR_KEY_NOT_FOUND,
     JSON_ERR_ARGS,
     JSON_ERR_PARSE,
     JSON_ERR_OVERFLOW,
     JSON_ERR_SYS,
+    JSON_ERR_LAST,
 };
 
 enum json_type
@@ -36,6 +39,11 @@ enum json_type
     JSON_TYPE_DICT,
     JSON_TYPE_VAL,
 };
+#ifndef inRange
+#define inRange(a,x,y)  (((a)>=(x)) && ((a) <= (y)))
+#endif
+#define JsonIsSuccess(x)    (-(x) == JSON_ERR_SUCCESS)
+#define JsonIsError(x) !JsonIsSuccess(x)
 
 struct json;
 struct json_iter;
@@ -53,8 +61,9 @@ int json_printf(const struct json *json, const char *fname, unsigned int indent)
 int json_prints(const struct json *json, char *buffer, unsigned int size, unsigned int indent);
 const char* json_str(const struct json *json, int *len, unsigned int indent);
 struct json_iter *json_keys(const struct json* json);
-struct json* json_clone(struct json* json);\
+struct json* json_clone(struct json* json);
 void json_iter_del(struct json_iter *iter);
+const char* json_sterror(int err);
 #ifdef __cplusplus
 }
 #endif
