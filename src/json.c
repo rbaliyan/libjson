@@ -116,6 +116,7 @@ static struct json* json_alloc_obj()
         json->count = 0;
         json->dict_start = NULL;
         json->dict_end = NULL;
+        json->list = NULL;
     } else {
         TRACE(ERROR, "Failed to allocate object");
     }
@@ -201,6 +202,7 @@ static struct json_dict * json_alloc_dict(const char* key, const struct json_val
         /* Set params*/
         dict->key = key;
         dict->val = (struct json_val *)val;
+        dict->next = dict->prev = NULL;
     }else {
         TRACE(ERROR, "Failed to allocate dict");
     }
@@ -1127,8 +1129,7 @@ static struct json_iter *json_get_iter(int type, const void* data)
 {
     struct json_iter *iter = NULL;
 
-    iter = calloc(sizeof(struct json_iter), 1);
-    if(iter){
+    if((iter = malloc(sizeof(struct json_iter)))){
         /* Set List for Iterator */            
         if(type == JSON_TYPE_LIST){
             iter->type = JSON_TYPE_LIST;
