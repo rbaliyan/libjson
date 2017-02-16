@@ -3,6 +3,7 @@
 #include <string.h>
 #include "dict.h"
 #include "list.h"
+#include "iter.h"
 
 #define MODULE "Dict"
 #include "trace.h"
@@ -23,6 +24,9 @@ struct dict
     dict_free_t free; 
     dict_print_t print;
 };
+
+static void* dict_iter_next(void* data, void* current);
+static void* dict_iter_get(void* data, void* current);
 
 static struct node* node_new(struct dict *dict,char* key, void* val)
 {
@@ -154,7 +158,7 @@ void* dict_get(struct dict* dict, char* key)
     } else {
         TRACE(ERROR,"Invalid arguments");
     }
-    return dict;
+    return data;
 }
 
 void dict_del(struct dict* dict)
@@ -175,4 +179,75 @@ int dict_print(struct dict* dict, void* stream)
         TRACE(ERROR,"Invalid arguments");
     }
     return ret;
+}
+
+static void* dict_iter_next(void* data, void* current)
+{
+    struct iter *iter = (struct iter*)data;
+    if(iter){
+        if(!current){
+            /* Make Sure to reset*/
+            iter_reset(iter);
+        }
+        return iter_next(iter);
+    } else {
+        TRACE(ERROR,"Null iter");
+    }
+    return NULL;
+}
+
+static void* dict_iter_get(void* data, void* current)
+{
+    struct iter *iter = (struct iter*)data;
+    struct node *node = NULL;
+    if(iter){
+        if((node = iter_get(iter)))
+            return node->key;
+    } else {
+        TRACE(ERROR,"Null Dict");
+    }
+    return NULL;
+}
+
+static int dict_iter_size(void* data)
+{
+    struct iter *iter = (struct iter*)data;
+    if(iter){
+        return iter_size(iter);
+    } else {
+        TRACE(ERROR, "Invalid argumets");
+    }
+    return -1;
+}
+
+struct iter* dict_iter(struct dict* dict)
+{
+    struct iter* l_iter = NULL;
+    struct iter* d_iter = NULL;
+    if(dict){
+        if((l_iter = list_iter(dict->list))){
+            if((d_iter = iter_new(l_iter, NULL, dict_iter_get, dict_iter_next, dict_iter_size))){
+                return d_iter;
+            } else {
+                 TRACE(ERROR, "Failed to create iter");
+                 iter_del(l_iter);
+            }
+        } else {
+            TRACE(ERROR, "Failed to create iter");
+        }
+    } else {
+        TRACE(ERROR,"Null Dict");
+    }
+    return NULL;
+}
+
+int dict_size(struct dict *dict)
+{
+    int len = -1;
+    if(dict){
+        len = list_size(dict->list);
+    } else {
+        TRACE(ERROR,"Invalid arguments");
+    }
+    return len;
 }

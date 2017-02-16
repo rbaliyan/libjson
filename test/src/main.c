@@ -3,6 +3,7 @@
 #include "json.h"
 #include "list.h"
 #include "dict.h"
+#include "iter.h"
 
 #define MODULE "Main"
 #include "trace.h"
@@ -82,7 +83,7 @@ int main(int argc, char *argv[])
     //list_sort(list);
     //list_print(list, NULL);
     iter = list_iter(list);
-    printf("\nPrint With Iter\n");
+    printf("\nPrint With Iter, Size : %d\n", iter_size(iter));
     for(i = 0, data = iter_next(iter);  data; data = iter_next(iter), i++){
         if(i>COUNT){
             printf("ERROR\n");
@@ -90,6 +91,7 @@ int main(int argc, char *argv[])
         }
         printf("%d: %d\n", i, *(int*)data);
     }
+    iter_del(iter);
     printf("\nPrint With Index\n");
     for(i = 0;i < COUNT; i++){
         data = list_get(list, i);
@@ -123,8 +125,29 @@ int main(int argc, char *argv[])
         dict_set(dict, msg, &arr[i]);
     }
     dict_print(dict, NULL);
+    printf("Replace Entry with 1\n");
+    dict_set(dict, "1", &i);
+    dict_print(dict, NULL);
+    printf("Remove Entry with 1\n");
     dict_set(dict, "1", NULL);
     dict_print(dict, NULL);
+    iter = dict_iter(dict);
+    printf("Print with iter Size: %d\n", iter_size(iter));
+    char *key;
+    if(iter){
+        for(i = 0, data = iter_next(iter);  data; data = iter_next(iter), i++){
+        if(i>COUNT){
+            printf("ERROR\n");
+            break;
+        }
+        key = (char*)data;
+        printf("%d: %s = %d\n", i, key, *(int*)dict_get(dict, key));
+    }
+    } else {
+        TRACE(ERROR, "Failed to create iter");
+    }
+
+
 
 }
 

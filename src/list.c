@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "list.h"
+#include "iter.h"
 
 #define MODULE "List"
 #include "trace.h"
@@ -51,18 +52,14 @@ struct list
     struct node* end;
 };
 
-struct iter
-{
-    unsigned int flags;
-    struct list *list;
-    struct node* current;
-};
-
 static struct node* node_new(struct list* list, void *data);
 static void node_add(struct list* list, struct node* node);
 static void node_add_sorted(struct list* list, struct node* node);
 static struct node* node_index(struct node* node, unsigned int index);
 static struct node* node_find(struct node* node, void* data, list_cmp_t cmp, int *index);
+static void* list_iter_next(void* data, void* current);
+static void* list_iter_get(void* data, void* current);
+static int list_iter_size(void* data);
 
 static struct node* node_new(struct list* list, void *data)
 {
@@ -266,51 +263,53 @@ int list_find(struct list *list, void* data)
     return index;
 }
 
+static void* list_iter_get(void* data, void* current)
+{
+    void* ret = NULL;
+    struct list* list = data;
+    struct node* node = current;
+    if(list && node){
+        ret = node->data;
+    } else {
+        TRACE(ERROR, "Invalid argumets");
+    }
+    return ret;
+}
+
+static void* list_iter_next(void* data, void* current)
+{
+    struct list* list = data;
+    struct node* node = current;
+    if(list){
+        if(node){
+            node = node->next;
+        } else {
+            node = list->start;
+        }
+        return node;
+    } else {
+        TRACE(ERROR, "Invalid argumets");
+    }
+    return NULL;
+}
+static int list_iter_size(void* data)
+{
+    struct list* list = data;
+    if(list){
+        return list->count;
+    } else {
+        TRACE(ERROR, "Invalid argumets");
+    }
+    return -1;
+}
 struct iter* list_iter(struct list* list)
 {
-    struct iter* iter = NULL;
     if(list){
-        if((iter = malloc(sizeof(struct iter)))){
-            iter->list = list;
-            iter->current = NULL;
-        } else {
-            TRACE(ERROR,"Failed to alloc iter");
-        }
+        return iter_new(list, NULL, list_iter_get, list_iter_next, list_iter_size);
     } else {
         TRACE(ERROR,"Invalid arguments");
     }
-    return iter;
-}
-
-void* iter_next(struct iter *iter)
-{
-    void *data = NULL;
-    if(iter && iter->list){
-
-        if(iter->current){
-            iter->current = iter->current->next;
-        } else {
-            iter->current = iter->list->start;
-        }
-
-        if(iter->current){
-            data = iter->current->data;
-        }
-    } else {
-        TRACE(ERROR,"Invalid arguments");
-    }
-    return data;
-}
-
-void* iter_get(struct iter *iter)
-{
-    void *data = NULL;
-    if(iter && iter->current){
-        data = iter->current->data;
-    } else {
-        TRACE(ERROR,"Invalid arguments");
-    }
-    return data;
+    return NULL;
 }
 
 void list_del(struct list* list)
@@ -332,14 +331,6 @@ void list_del(struct list* list)
 
 }
 
-void iter_del(struct iter *iter)
-{
-    if(iter){
-        free(iter);
-    } else {
-        TRACE(ERROR,"Invalid arguments");
-    }
-}
 
 int list_print(struct list *list, void *stream)
 {
@@ -375,9 +366,25 @@ int list_remove(struct list* list, unsigned int index)
                 list->free(node->data);
             }
             free(node);
+            if(list->count == 0){
+                TRACE(ERROR,"List count negative");
+            } else {
+                list->count--;
+            }
         }
     } else {
         TRACE(ERROR,"Invalid arguments");
     }
     return ret;
+}
+
+int list_size(struct list *list)
+{
+    int len = -1;
+    if(list){
+        len = list->count;
+    } else {
+        TRACE(ERROR,"Invalid arguments");
+    }
+    return len;
 }
