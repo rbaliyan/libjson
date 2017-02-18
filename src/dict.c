@@ -28,7 +28,7 @@ struct dict
 static void* dict_iter_next(void* data, void* current);
 static void* dict_iter_get(void* data, void* current);
 
-static struct node* node_new(struct dict *dict,char* key, void* val)
+static struct node* node_new(struct dict *dict, char* key, void* val)
 {
     struct node* node = NULL;
     if( key && val ){
@@ -52,9 +52,9 @@ static void node_del(void *data)
     struct node *node = (struct node *)data;
     if(node){
         if(node->dict && node->dict->free){
-            node->dict->free(node->val);
+            node->dict->free((void*)node->val);
         }
-        free(node->key);
+        free((void*)node->key);
         free(node);
     } else {
         TRACE(ERROR,"Invalid arguments");
@@ -88,7 +88,7 @@ struct dict* dict_new(dict_free_t f, dict_cmp_t cmp, dict_print_t print)
         dict->print = print;
         dict->free = f;
         dict->cmp = cmp;
-        dict->list = list_new(node_del, node_cmp, node_print);
+        dict->list = list_new((list_free_t)node_del, (list_cmp_t)node_cmp, (list_print_t)node_print);
     } else {
         TRACE(ERROR,"Failed to allocate dict");
     }
@@ -104,27 +104,32 @@ int dict_set(struct dict *dict, char* key, void* val)
     temp.val = val;
     temp.dict = dict;
     int index = 0;
+
     if(dict && key){
         if((index = list_find(dict->list, &temp)) >= 0){
             TRACE(INFO, "Found entry @%d", index);
             if(val){
-                if((node = list_get(dict->list, index))){
+                if((node = (struct node*)list_get(dict->list, index))){
                     if(dict->free){
                         TRACE(DEBUG, "Free Previous Value %p", node->val);
                         dict->free(node->val);
                     }
                     node->val = val;
-                    ret = 0;
+                    ret = list_size(dict->list);
                 } else {
                     TRACE(ERROR, "Internal error dict entry at %d got deleted", index);
                 }
             } else {
                 TRACE(INFO, "Delete Key:%s", key);
                 list_remove(dict->list, index);
+                ret = list_size(dict->list);
             }
         } else if( val && ((node = node_new(dict, key, val)))){
-            if(list_add_sorted(dict->list, node) > 0){
-
+            if((list_add(dict->list, node)) < 0){
+                TRACE(ERROR, "Insertion failed");
+                node_del(node);
+            } else {
+                ret = list_size(dict->list);
             }
         } else if(!val){
             TRACE(WARN, "Key Not Found : %s", key);
@@ -138,11 +143,11 @@ int dict_set(struct dict *dict, char* key, void* val)
 void* dict_get(struct dict* dict, char* key)
 {
     void *data = NULL;
-    struct node* node = NULL;
+    struct node *node = NULL;
     struct node temp = {0};
     temp.key = (char*)key;
     temp.val = NULL;
-    temp.dict = dict;
+    temp.dict = (struct dict*)dict;
     int index = 0;
     if(dict && key){
          if((index = list_find(dict->list, &temp)) >= 0){
@@ -151,9 +156,8 @@ void* dict_get(struct dict* dict, char* key)
              } else {
                  TRACE(ERROR, "Internal error dict entry at %d got deleted", index);
              }
-             
          } else {
-            TRACE(INFO,"Failed to find key:%s", key);
+            //TRACE(INFO,"Failed to find key:%s", key);
         }
     } else {
         TRACE(ERROR,"Invalid arguments");
@@ -165,6 +169,7 @@ void dict_del(struct dict* dict)
 {
     if(dict){
         list_del(dict->list);
+        free(dict);
     } else {
         TRACE(ERROR,"Invalid arguments");
     }

@@ -10,6 +10,52 @@
 #endif
 #include "utils.h"
 
+static int tohex(char ch);
+static int todigit(char ch);
+static int tohex(char ch);
+
+
+/*
+* @brief Convert character to hex
+* @param ch character
+* @return hex value or -1 for invalid data
+*/
+static int tohex(char ch)
+{
+    int val = -1;
+    /* Valid Hex values should be between 
+    *'A' and 'F'
+    *'a' and 'f'
+    *'0' and '9', including 
+    */
+    if((ch >= 'a' ) && ( ch <='f')){
+        val = ch - 'a' + 10;
+    } else if((ch >= 'A' ) && ( ch <='F')){
+        val = ch - 'A' + 10;
+    } else if((ch >= '0' ) && ( ch <='9')){
+        val = ch - '0';
+    }
+
+    return val;
+}
+
+/*
+* @brief Convert character to digit
+* @param ch character
+* @return digit value or -1 for invalid data
+*/
+static int todigit(char ch)
+{
+    int val = -1;
+    /* Valid digit should be between 
+    * '0' and '9' including
+    */
+    if((ch >= '0' ) && ( ch <='9')){
+        val = ch - '0';
+    }
+
+    return val;
+}
 
 /*
 * @brief skip spaces in buffer 
@@ -18,7 +64,7 @@
 * @param end end of buffer
 * @return rest of buffer after removing space
 */
-const char* trim(const char *start, const char *end)
+char* trim(char *start, char *end)
 {
     /* Check for valid ptrs */
     if(start && end){
@@ -44,7 +90,7 @@ const char* trim(const char *start, const char *end)
 * @param end end of buffer
 * @return true if string representation is in hex
 */
-bool is_hex(const char *start, const char *end)
+bool is_hex(char *start, char *end)
 {
     /* Check data*/
     if(start && end && (start < end)){
@@ -64,7 +110,7 @@ bool is_hex(const char *start, const char *end)
 * @param end end of buffer
 * @return true if string representation is in octal
 */
-bool is_octal(const char *start, const char *end)
+bool is_octal(char *start, char *end)
 {
     /*check for data*/
     if(start && end && (start < end)){
@@ -78,48 +124,6 @@ bool is_octal(const char *start, const char *end)
 }
 
 /*
-* @brief Convert character to hex
-* @param ch character
-* @return hex value or -1 for invalid data
-*/
-int tohex(char ch)
-{
-    int val = -1;
-    /* Valid Hex values should be between 
-    *'A' and 'F'
-    *'a' and 'f'
-    *'0' and '9', including 
-    */
-    if((ch >= 'a' ) && ( ch <='f')){
-        val = ch - 'a' + 10;
-    } else if((ch >= 'A' ) && ( ch <='F')){
-        val = ch - 'A' + 10;
-    } else if((ch >= '0' ) && ( ch <='9')){
-        val = ch - '0';
-    }
-
-    return val;
-}
-
-/*
-* @brief Convert character to digit
-* @param ch character
-* @return digit value or -1 for invalid data
-*/
-int todigit(char ch)
-{
-    int val = -1;
-    /* Valid digit should be between 
-    * '0' and '9' including
-    */
-    if((ch >= '0' ) && ( ch <='9')){
-        val = ch - '0';
-    }
-
-    return val;
-}
-
-/*
 * @brief Convert string to hex number
 * @param start start of buffer
 * @param end end of buffer
@@ -127,9 +131,9 @@ int todigit(char ch)
 * @param overflow overflow occured and data got trucnated
 * @return integer
 */
-unsigned int get_hex(const char *start, const char *end, const char **raw,bool *overflow)
+unsigned int parse_hex(char *start, char *end, char **raw,bool *overflow)
 {
-    const char *begin = start;
+    char *begin = start;
     unsigned int number = 0;
     unsigned int count = 0;
     int hex_max = sizeof(number) * 2;
@@ -184,9 +188,9 @@ unsigned int get_hex(const char *start, const char *end, const char **raw,bool *
 * @param overflow overflow occured and data got trucnated
 * @return integer
 */
-unsigned int get_octal(const char *start, const char *end,const  char **raw, bool *overflow)
+unsigned int parse_octal(char *start, char *end, char **raw, bool *overflow)
 {
-    const char *begin = start;
+    char *begin = start;
     unsigned int number = 0;
     int octal_max = sizeof(number) * 8 / 3;
     unsigned int count = 0;
@@ -237,9 +241,9 @@ unsigned int get_octal(const char *start, const char *end,const  char **raw, boo
 * @param raw rest of data after parsing
 * @return fractional value
 */
-double get_fraction(const char *start, const char *end, const  char **raw)
+double parse_float(char *start, char *end,  char **raw)
 {
-    const char *begin = start;
+    char *begin = start;
     double number = 0;
     double multiple = 1.0f;
     int val = 0;
@@ -286,7 +290,7 @@ double get_fraction(const char *start, const char *end, const  char **raw)
 * @param raw rest of data after parsing
 * @return boolean
 */
-bool get_boolean(const char *start, const char *end,const  char** raw)
+bool parse_boolean(char *start, char *end, char** raw)
 {
     int len = end - start;
     int tlen = 4;
@@ -317,11 +321,11 @@ bool get_boolean(const char *start, const char *end,const  char** raw)
 * @param len length of string
 * @return pointer to string 
 */
-const char *get_string(const char *start, const char *end,const  char** raw, int *len)
+char *parse_str(char *start, char *end, char** raw, int *len)
 {
-    const char *begin = start;
+    char *begin = start;
     bool escape_on = false;
-    const char *str_start = NULL;
+    char *str_start = NULL;
     char *buffer = NULL;
 
     if(start && end && raw && (start < end)){
@@ -348,7 +352,7 @@ const char *get_string(const char *start, const char *end,const  char** raw, int
                     buffer[start - str_start] = '\0';
                     if(len)
                       *len = start - str_start;
-                    return (const char*)buffer;
+                    return (char*)buffer;
                 }
                 break;
             } else {
@@ -374,7 +378,7 @@ const char *get_string(const char *start, const char *end,const  char** raw, int
 * @param unsigned_flag if number if unsigned
 * @return long number
 */
-long get_integer(const char *start, const char *end,const  char** raw, bool *overflow, bool *unsigned_flag)
+long parse_int(char *start, char *end, char** raw, bool *overflow, bool *unsigned_flag)
 {
     long number = 0;
     long old = 0;
@@ -382,7 +386,7 @@ long get_integer(const char *start, const char *end,const  char** raw, bool *ove
     int count = 0;
     bool is_overflow = false;
     int val = 0;
-    const char *begin = start;
+    char *begin = start;
     /* Check data */
     if(start && end && raw && (start < end)){
         /* Traverse all data */

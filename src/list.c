@@ -139,12 +139,12 @@ static struct node* node_index(struct node* node, unsigned int index)
 
 static struct node* node_find(struct node* node, void* data, list_cmp_t cmp,int *index)
 {
-    int i = -1;
+    int i = 0;
     if(!node || !cmp || !node->list)
         return NULL;
     
-     for(i = 0; node && index; node = node->next, i++){
-        if(node->list->cmp(node->data, data) == 0){
+    for(i = 0; node && index; node = node->next, i++){
+        if(cmp(node->data, data) == 0){
             if(index)
                 *index = i;
             break;
@@ -240,7 +240,6 @@ int list_sort(struct list *list)
             ListSetSorted(list);
             for(; node; node = temp){
                 temp = node->next;
-                node->list = NULL;
                 node->next = node->prev = NULL;
                 node_add_sorted(list, node);
             }
@@ -357,9 +356,14 @@ int list_remove(struct list* list, unsigned int index)
         if((node = node_index(list->start, index))){
             if(node->prev){
                 node->prev->next = node->next;
+            } else {
+                list->start = node->next;
             }
+
             if(node->next){
                 node->next->prev = node->prev;
+            } else {
+                list->end = node->prev;
             }
 
             if(list->free){
