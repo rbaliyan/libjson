@@ -12,8 +12,8 @@ struct node
 {
     struct dict *dict;
     unsigned int flags;
-    char* key;
-    void* val;
+    const char* key;
+    const void* val;
 };
 
 struct dict
@@ -25,10 +25,10 @@ struct dict
     dict_print_t print;
 };
 
-static void* dict_iter_next(void* data, void* current);
-static void* dict_iter_get(void* data, void* current);
+static void* dict_iter_next(const void* data, void* current);
+static void* dict_iter_get(const void* data, void* current);
 
-static struct node* node_new(struct dict *dict, char* key, void* val)
+static struct node* node_new(struct dict *dict, const char* key, const void* val)
 {
     struct node* node = NULL;
     if( key && val ){
@@ -61,7 +61,7 @@ static void node_del(void *data)
     }
 }
 
-static int node_print(void* stream, unsigned int index, void *data)
+static int node_print(const void* stream, unsigned int index, const void *data)
 {
     struct node *node = (struct node *)data;
     int ret = 0;
@@ -74,7 +74,7 @@ static int node_print(void* stream, unsigned int index, void *data)
     return ret;
 }
 
-static int node_cmp(void* data1, void* data2)
+static int node_cmp(const void* data1, const void* data2)
 {
     struct node *node1 = (struct node *)data1;
     struct node *node2 = (struct node *)data2;
@@ -95,7 +95,7 @@ struct dict* dict_new(dict_free_t f, dict_cmp_t cmp, dict_print_t print)
     return dict;
 }
 
-int dict_set(struct dict *dict, char* key, void* val)
+int dict_set(struct dict *dict, const char* key, const void* val)
 {
     int ret = -1;
     struct node *node = NULL;
@@ -112,7 +112,7 @@ int dict_set(struct dict *dict, char* key, void* val)
                 if((node = (struct node*)list_get(dict->list, index))){
                     if(dict->free){
                         TRACE(DEBUG, "Free Previous Value %p", node->val);
-                        dict->free(node->val);
+                        dict->free((void*)node->val);
                     }
                     node->val = val;
                     ret = list_size(dict->list);
@@ -140,7 +140,7 @@ int dict_set(struct dict *dict, char* key, void* val)
     return ret;
 }
 
-void* dict_get(struct dict* dict, char* key)
+void* dict_get(const struct dict* dict, const char* key)
 {
     void *data = NULL;
     struct node *node = NULL;
@@ -152,7 +152,7 @@ void* dict_get(struct dict* dict, char* key)
     if(dict && key){
          if((index = list_find(dict->list, &temp)) >= 0){
              if((node = list_get(dict->list, index))){
-                data = node->val;
+                data = (void*)node->val;
              } else {
                  TRACE(ERROR, "Internal error dict entry at %d got deleted", index);
              }
@@ -175,7 +175,7 @@ void dict_del(struct dict* dict)
     }
 }
 
-int dict_print(struct dict* dict, void* stream)
+int dict_print(const struct dict* dict, const void* stream)
 {
     int ret = 0;
     if(dict){
@@ -186,7 +186,7 @@ int dict_print(struct dict* dict, void* stream)
     return ret;
 }
 
-static void* dict_iter_next(void* data, void* current)
+static void* dict_iter_next(const void* data, void* current)
 {
     struct iter *iter = (struct iter*)data;
     if(iter){
@@ -201,20 +201,20 @@ static void* dict_iter_next(void* data, void* current)
     return NULL;
 }
 
-static void* dict_iter_get(void* data, void* current)
+static void* dict_iter_get(const void* data, void* current)
 {
     struct iter *iter = (struct iter*)data;
     struct node *node = NULL;
     if(iter){
         if((node = iter_get(iter)))
-            return node->key;
+            return (void*)node->key;
     } else {
         TRACE(ERROR,"Null Dict");
     }
     return NULL;
 }
 
-static int dict_iter_size(void* data)
+static int dict_iter_size(const void* data)
 {
     struct iter *iter = (struct iter*)data;
     if(iter){
@@ -225,7 +225,7 @@ static int dict_iter_size(void* data)
     return -1;
 }
 
-struct iter* dict_iter(struct dict* dict)
+struct iter* dict_iter(const struct dict* dict)
 {
     struct iter* l_iter = NULL;
     struct iter* d_iter = NULL;
@@ -246,7 +246,7 @@ struct iter* dict_iter(struct dict* dict)
     return NULL;
 }
 
-int dict_size(struct dict *dict)
+int dict_size(const struct dict *dict)
 {
     int len = -1;
     if(dict){

@@ -35,7 +35,7 @@ enum list_flags
 
 struct node
 {
-    void* data;
+    const void* data;
     unsigned int flags;
     struct list* list;
     struct node* next;
@@ -52,16 +52,16 @@ struct list
     struct node* end;
 };
 
-static struct node* node_new(struct list* list, void *data);
+static struct node* node_new(struct list* list, const void *data);
 static void node_add(struct list* list, struct node* node);
 static void node_add_sorted(struct list* list, struct node* node);
-static struct node* node_index(struct node* node, unsigned int index);
-static struct node* node_find(struct node* node, void* data, list_cmp_t cmp, int *index);
-static void* list_iter_next(void* data, void* current);
-static void* list_iter_get(void* data, void* current);
-static int list_iter_size(void* data);
+static struct node* node_index(const struct node* node, unsigned int index);
+static struct node* node_find(const struct node* node, const void* data, list_cmp_t cmp, int *index);
+static void* list_iter_next(const void* data, void* current);
+static void* list_iter_get(const void* data, void* current);
+static int list_iter_size(const void* data);
 
-static struct node* node_new(struct list* list, void *data)
+static struct node* node_new(struct list* list, const void *data)
 {
      struct node* node = NULL;
      if((node = malloc(sizeof(struct node)))){
@@ -131,13 +131,13 @@ static void node_add_sorted(struct list* list, struct node* node)
     }
 }
 
-static struct node* node_index(struct node* node, unsigned int index)
+static struct node* node_index(const struct node* node, unsigned int index)
 {
     for(; node && index; node = node->next, index--);
-    return node;
+    return (struct node*)node;
 }
 
-static struct node* node_find(struct node* node, void* data, list_cmp_t cmp,int *index)
+static struct node* node_find(const struct node* node, const void* data, list_cmp_t cmp, int *index)
 {
     int i = 0;
     if(!node || !cmp || !node->list)
@@ -150,7 +150,7 @@ static struct node* node_find(struct node* node, void* data, list_cmp_t cmp,int 
             break;
         }
      }
-     return node;
+     return (struct node*)node;
 }
 
 struct list* list_new(list_free_t f, list_cmp_t cmp, list_print_t print)
@@ -171,7 +171,7 @@ struct list* list_new(list_free_t f, list_cmp_t cmp, list_print_t print)
     return list;
 }
 
-int list_add(struct list* list, void* data)
+int list_add(struct list* list, const void* data)
 {
     struct node* node = NULL;
     int count = -1;
@@ -188,7 +188,7 @@ int list_add(struct list* list, void* data)
     return count;
 }
 
-int list_add_sorted(struct list* list, void* data)
+int list_add_sorted(struct list* list, const void* data)
 {
     struct node* node = NULL;
     int count = -1;
@@ -212,13 +212,13 @@ int list_add_sorted(struct list* list, void* data)
 }
 
 
-void* list_get(struct list *list, unsigned int index)
+void* list_get(const struct list *list, unsigned int index)
 {
     void* data = NULL;
     struct node* node = NULL;
     if(list && (list->count > index)){
         if((node = node_index(list->start, index))){
-            data = node->data;
+            data = (void*)node->data;
         }
     } else {
         TRACE(ERROR,"Invalid arguments");
@@ -251,7 +251,7 @@ int list_sort(struct list *list)
     return count;
 }
 
-int list_find(struct list *list, void* data)
+int list_find(const struct list *list, const void* data)
 {
     int index = -1;
     if(list){
@@ -262,22 +262,22 @@ int list_find(struct list *list, void* data)
     return index;
 }
 
-static void* list_iter_get(void* data, void* current)
+static void* list_iter_get(const void* data, void* current)
 {
     void* ret = NULL;
-    struct list* list = data;
+    const struct list* list = (const struct list*)data;
     struct node* node = current;
     if(list && node){
-        ret = node->data;
+        ret = (void*)node->data;
     } else {
         TRACE(ERROR, "Invalid argumets");
     }
     return ret;
 }
 
-static void* list_iter_next(void* data, void* current)
+static void* list_iter_next(const void* data, void* current)
 {
-    struct list* list = data;
+    const struct list* list = (const struct list*)data;
     struct node* node = current;
     if(list){
         if(node){
@@ -291,9 +291,9 @@ static void* list_iter_next(void* data, void* current)
     }
     return NULL;
 }
-static int list_iter_size(void* data)
+static int list_iter_size(const void* data)
 {
-    struct list* list = data;
+    const struct list* list = (const struct list*)data;
     if(list){
         return list->count;
     } else {
@@ -319,7 +319,7 @@ void list_del(struct list* list)
         for(node = list->start; node; node = next){
             next = node->next;
             if(list->free){
-                list->free(node->data);
+                list->free((void*)node->data);
             }
             free(node);
         }
@@ -331,7 +331,7 @@ void list_del(struct list* list)
 }
 
 
-int list_print(struct list *list, void *stream)
+int list_print(const struct list *list, const void *stream)
 {
     int i;
     int ret = 0;
@@ -367,7 +367,7 @@ int list_remove(struct list* list, unsigned int index)
             }
 
             if(list->free){
-                list->free(node->data);
+                list->free((void*)node->data);
             }
             free(node);
             if(list->count == 0){
@@ -382,7 +382,7 @@ int list_remove(struct list* list, unsigned int index)
     return ret;
 }
 
-int list_size(struct list *list)
+int list_size(const struct list *list)
 {
     int len = -1;
     if(list){

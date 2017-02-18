@@ -174,6 +174,7 @@ static int test_buffer(void)
     struct json *json;
     if((json = json_create(0))){
         if((buffer = json_str(json, &len, 0))){
+            free(buffer);
         } else {
              TRACE(ERROR,"To String Failed");
              status = 0;
@@ -246,6 +247,7 @@ int test_iter(void)
         while((data = iter_next(iter))){
             printf("%s\n", (char*)data);
         }
+        iter_del(iter);
         json_del(json);
     } else {
         status = 0;
@@ -265,17 +267,19 @@ int test_list(void)
         if(!(iter = json_iter(json))){
             TRACE(ERROR,"failed get iter");
             status = 0;
-        } else if(!(data = iter_next(iter))){
-            TRACE(ERROR,"iter next failed");
-            status = 0;
-        }
-        iter_reset(iter);
-        while((data = iter_next(iter))){
-            if((json_val((struct json*)data, &n, sizeof(n)))){
-                printf("%d\n", (int)n);
+        } else {
+            if(!(data = iter_next(iter))){
+                TRACE(ERROR,"iter next failed");
+                status = 0;
             }
+            iter_reset(iter);
+            while((data = iter_next(iter))){
+                if((json_val((struct json*)data, &n, sizeof(n)))){
+                    printf("%d\n", (int)n);
+                }
+            }
+            iter_del(iter);
         }
-
         json_del(json);
     } else {
         status = 0;

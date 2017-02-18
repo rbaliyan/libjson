@@ -11,15 +11,15 @@
 
 int arr[TEST_LIST_SIZE];
 
-static int int_cmp(void *d1, void*d2)
+static int int_cmp(const void *d1, const void*d2)
 {
     return *(int*)d2 - *(int*)d1;
 }
-static int int_print(void *stream, unsigned int index, void *data)
+static int int_print(const void *stream, unsigned int index, const void *data)
 {
     if(!stream)
         stream = stdout;
-    return fprintf(stream, "%d ", *(int*)(data));
+    return fprintf((FILE*)stream, "%d ", *(int*)(data));
 }
 
 
@@ -183,7 +183,7 @@ static int test_iter(void)
         } else {
             TRACE(ERROR, "List iterator failed");
         }
-
+        
         list_del(list);
     }
     return status;

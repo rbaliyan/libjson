@@ -9,7 +9,7 @@
 
 struct iter
 {
-    void* data;
+    const void* data;
     void* current;
     iter_free_t free;
     iter_next_t next;
@@ -17,7 +17,7 @@ struct iter
     iter_size_t size;
 };
 
-struct iter* iter_new(void *data, iter_free_t f, iter_get_t get, iter_next_t next, iter_size_t size)
+struct iter* iter_new(const void *data, iter_free_t f, iter_get_t get, iter_next_t next, iter_size_t size)
 {
     struct iter*  iter = NULL;
     if(next && get){
@@ -78,15 +78,15 @@ void iter_del(struct iter *iter)
 {
     if(iter){
         if(iter->free){
-            iter->free(iter->data);
-            free(iter);
+            iter->free((void*)iter->data);
         }
+        free(iter);
     } else {
         TRACE(ERROR, "Invalid arguments");
     }
 }
 
-int iter_size(struct iter *iter)
+int iter_size(const struct iter *iter)
 {
     if(iter){
         if(iter->size){

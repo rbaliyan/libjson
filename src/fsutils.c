@@ -86,7 +86,7 @@ static int read_buffer(void *handler, char *buf, int size)
 * @return length of data written
 */
 #ifndef FUNOPEN_SUPPORT
-static ssize_t write_buffer(void *handler, char *buf, size_t size)
+static ssize_t write_buffer(void *handler, const char *buf, size_t size)
 #else
 static int write_buffer(void *handler, const char *buf, int size)
 #endif
@@ -320,6 +320,7 @@ char* readall(const char *fname, unsigned int *len)
                 /* Seek Fail, might have holes */
                 fprintf(stderr, "%s:%d>Failed to seek in file", __func__, __LINE__);
             }
+            close(fd);
         } else {   
             /* File open fail*/          
             fprintf(stderr, "%s:%d>Failed to open file : %s", __func__, __LINE__,fname);

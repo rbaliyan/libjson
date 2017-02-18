@@ -14,16 +14,16 @@
 char _dict_keys[TEST_LIST_SIZE][TEST_STR_SIZE_MAX];
 char _dict_vals[TEST_LIST_SIZE][TEST_STR_SIZE_MAX];
 
-static int str_cmp(void *d1, void*d2)
+static int str_cmp(const void *d1, const void*d2)
 {
     return strcmp((char*)d1, (char*)d2);
 }
 
-static int str_print(void *stream, unsigned int index, char *key, void *data)
+static int str_print(const void *stream, unsigned int index, const char *key, const void *data)
 {
     if(!stream)
         stream = stdout;
-    return fprintf(stream, "%s:%s\n", key, (char*)(data));
+    return fprintf((FILE*)stream, "%s:%s\n", key, (char*)(data));
 }
 
 static int rand_range(int min, int max)

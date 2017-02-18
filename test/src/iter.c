@@ -11,14 +11,14 @@
 const char* test_str ="A very long ";
 
 
-void* int_get(void* data, void* current)
+void* int_get(const void* data, void* current)
 {
     return current;
 }
-void* int_next(void* data, void* current)
+void* int_next(const void* data, void* current)
 {
     long count;
-    count = (int)current;
+    count = (long)current;
     if(count < TEST_INT_LIMIT){
         count = count + 1;
     } else {
@@ -27,7 +27,7 @@ void* int_next(void* data, void* current)
     return (void*)count;
 }
 
-int int_size(void* data)
+int int_size(const void* data)
 {
     return TEST_INT_LIMIT;
 }
@@ -35,19 +35,21 @@ int int_size(void* data)
 int test_int()
 {
     int status = 1;
-    int val = 0;
+    long val = 0;
     int x = 0;
     struct iter* iter = NULL; 
     if(!(iter = iter_new(NULL, NULL, int_get, int_next, int_size))){
         TRACE(ERROR,"Failed to create iter");
         status = 0;
     } else {
-        for(x = 1,val = (int)iter_next(iter); val; val = (int)iter_next(iter), x++){
+        for(x = 1,val = (long)iter_next(iter); val; val = (long)iter_next(iter), x++){
             if(val != x){
                 TRACE(ERROR,"Value Mismatch");
                 status = 0;
             }
         }
+
+        iter_del(iter);
     }
     return status;
 }

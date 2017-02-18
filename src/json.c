@@ -1094,6 +1094,8 @@ static struct dict* clone_dict(struct dict *src_dict, int *err)
                 TRACE(ERROR,"Memory allocation failure");
                 *err = JsonErr(JSON_ERR_NO_MEM);
             }
+            
+            iter_del(iter);
         } else {
             TRACE(ERROR,"Failed to get iterator");
             *err = JsonErr(JSON_ERR_NO_MEM);
@@ -1242,13 +1244,11 @@ char* json_str(struct json *json, int *len, unsigned int indent)
     char **buf_ptr;
     char *buffer;
     size_t *size_ptr = NULL;
-    size_t size = 0;
     int print_length = 0;
     FILE *fp = fdmemopen(&buf_ptr, &size_ptr);
     if(fp){
          print_length = print(stdout, json, indent, 0);
          buffer = *buf_ptr;
-         size = *size_ptr;
          fclose(fp);
          if(len)
             *len = print_length;
