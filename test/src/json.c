@@ -170,10 +170,10 @@ static int test_buffer(void)
 {
     int status = 1;
     char buffer[1024];
-    int len = sizeof(buffer);
+    unsigned int len = sizeof(buffer);
     struct json *json;
     if((json = json_create(0))){
-        if((json_str(json, buffer, len, 0))<0){
+        if((json_prints(json, buffer, len, 0))<0){
              TRACE(ERROR,"Copy to buffer Failed");
              status = 0;
         }
