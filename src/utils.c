@@ -326,7 +326,6 @@ char *parse_str(char *start, char *end, char** raw, int *len)
     char *begin = start;
     bool escape_on = false;
     char *str_start = NULL;
-    char *buffer = NULL;
 
     if(start && end && raw && (start < end)){
 
@@ -346,14 +345,8 @@ char *parse_str(char *start, char *end, char** raw, int *len)
                 escape_on = !escape_on;
             } else if((*start == '"' ) &&( !escape_on )){
                 *raw = start + 1;
-                buffer = malloc(start - str_start + 1);
-                if(buffer){
-                    memcpy(buffer, str_start, start - str_start );
-                    buffer[start - str_start] = '\0';
-                    if(len)
-                      *len = start - str_start;
-                    return (char*)buffer;
-                }
+                *start = '\0';
+                return str_start;
                 break;
             } else {
                 /* Escape is only applied to next one character */

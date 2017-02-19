@@ -398,7 +398,7 @@ static struct json* parse_val(char *start, char *end, char **raw, int *err)
                 len = 0;
 
                 /* Check for failure */
-                if(!(val = (void*)parse_str(start, end, &temp, &len))){
+                if(!(val = (void*)parse_str(start, end, &temp, &len)) || !(val = strdup(val))){
                     TRACE(ERROR, "Failed to parse object");
                     *err = JsonErr(JSON_ERR_PARSE);
                     *raw = begin;
