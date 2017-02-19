@@ -169,14 +169,12 @@ static int test_to_str(void)
 static int test_buffer(void)
 {
     int status = 1;
-    char *buffer;
-    int len = 0;
+    char buffer[1024];
+    int len = sizeof(buffer);
     struct json *json;
     if((json = json_create(0))){
-        if((buffer = json_str(json, &len, 0))){
-            free(buffer);
-        } else {
-             TRACE(ERROR,"To String Failed");
+        if((json_str(json, buffer, len, 0))<0){
+             TRACE(ERROR,"Copy to buffer Failed");
              status = 0;
         }
         json_del(json);

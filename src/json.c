@@ -1063,30 +1063,22 @@ static struct dict* clone_dict(struct dict *src_dict, int *err)
                 /* Traverse entire dict and duplicate*/
                 for(key = iter_next(iter); key; key = iter_next(iter)){
                     /* duplicate key */
-                    if((key = strdup(key))){
-                        /* Value should be here, if not found some internal error occurred*/
-                        if((json = dict_get(src_dict, key))){
-                            if((json = json_clone(json, err))){
-                                if((dict_set(dict, key, json))>=0){
-                                    *err = JsonErr(JSON_ERR_SUCCESS);
-                                } else {
-                                    TRACE(ERROR,"Failed to set dict entry");
-                                    *err = JsonErr(JSON_ERR_NO_MEM);
-                                    json_del(json);
-                                    free(key);
-                                }
+                    /* Value should be here, if not found some internal error occurred*/
+                    if((json = dict_get(src_dict, key))){
+                        if((json = json_clone(json, err))){
+                            if((dict_set(dict, key, json))>=0){
+                                *err = JsonErr(JSON_ERR_SUCCESS);
                             } else {
-                                TRACE(ERROR,"Failed to allocate json val");
-                                free(key);
+                                TRACE(ERROR,"Failed to set dict entry");
                                 *err = JsonErr(JSON_ERR_NO_MEM);
+                                json_del(json);
                             }
                         } else {
-                            TRACE(ERROR,"Internal error null value");
-                            free(key);
+                            TRACE(ERROR,"Failed to allocate json val");
                             *err = JsonErr(JSON_ERR_NO_MEM);
                         }
                     } else {
-                        TRACE(ERROR,"Failed to duplicate key");
+                        TRACE(ERROR,"Internal error null value");
                         *err = JsonErr(JSON_ERR_NO_MEM);
                     }
                 }
