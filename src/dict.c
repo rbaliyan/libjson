@@ -231,7 +231,7 @@ struct iter* dict_iter(const struct dict* dict)
     struct iter* d_iter = NULL;
     if(dict){
         if((l_iter = list_iter(dict->list))){
-            if((d_iter = iter_new(l_iter, NULL, dict_iter_get, dict_iter_next, dict_iter_size))){
+            if((d_iter = iter_new(l_iter, (iter_free_t)iter_del, dict_iter_get, dict_iter_next, dict_iter_size))){
                 return d_iter;
             } else {
                  TRACE(ERROR, "Failed to create iter");

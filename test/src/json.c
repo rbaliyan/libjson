@@ -239,15 +239,17 @@ int test_iter(void)
         if(!(iter = json_iter(json))){
             TRACE(ERROR,"failed get iter");
             status = 0;
-        } else if(!(data = iter_next(iter))){
-            TRACE(ERROR,"iter next failed");
-            status = 0;
+        } else {
+            if(!(data = iter_next(iter))){
+                TRACE(ERROR,"iter next failed");
+                status = 0;
+            }
+            iter_reset(iter);
+            while((data = iter_next(iter))){
+                printf("%s\n", (char*)data);
+            }
+            iter_del(iter);
         }
-        iter_reset(iter);
-        while((data = iter_next(iter))){
-            printf("%s\n", (char*)data);
-        }
-        iter_del(iter);
         json_del(json);
     } else {
         status = 0;

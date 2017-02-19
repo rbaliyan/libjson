@@ -306,7 +306,7 @@ char* readall(const char *fname, unsigned int *len)
                       buffer[index] = '\0';  
                         if(len)
                             *len = (unsigned int)size;
-
+                        close(fd);
                         return buffer;
                     } else {
                         /* Free Buffer */
